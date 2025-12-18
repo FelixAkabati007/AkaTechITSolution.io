@@ -1,6 +1,6 @@
 import React from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Icons } from "./Icons";
+import { Icons } from "@components/ui/Icons";
 
 export const Modal = ({ isOpen, onClose, title, children }) => {
   return (

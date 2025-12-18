@@ -10,6 +10,7 @@ import { Pricing } from "@components/sections/Pricing";
 import { Contact } from "@components/sections/Contact";
 import { Footer } from "@components/layout/Footer";
 import { AuthModal } from "@components/ui/AuthModal";
+import { FloatingAssistant } from "@components/ui/FloatingAssistant";
 import { useTheme } from "./hooks/useTheme";
 
 // Lazy load pages
@@ -112,9 +113,7 @@ export default function App() {
           aria-hidden="true"
           className="fixed bottom-0 left-0 w-[150px] md:w-[250px] lg:w-[350px] opacity-50 z-[5] pointer-events-none transition-all duration-500 ease-in-out mix-blend-multiply dark:mix-blend-screen select-none"
         />
-
         {view === "landing" && <ScrollProgress />}
-
         <Navbar
           toggleAuth={() =>
             view === "dashboard"
@@ -129,7 +128,6 @@ export default function App() {
           cycleTheme={cycleTheme}
           onViewChange={handleNavigate}
         />
-
         {view === "landing" && (
           <>
             <Hero />
@@ -139,7 +137,6 @@ export default function App() {
             <Contact />
           </>
         )}
-
         <Suspense
           fallback={
             <div className="min-h-screen flex items-center justify-center bg-white dark:bg-akatech-dark">
@@ -183,14 +180,16 @@ export default function App() {
             />
           )}
         </Suspense>
-
         <Footer onNavigate={handleNavigate} />
-
+        {view === "landing" && (
+          <Suspense fallback={null}>
+            <FloatingAssistant />
+          </Suspense>
+        )}
         <AuthModal
           isOpen={authModalOpen}
           onClose={() => setAuthModalOpen(false)}
           onLogin={handleLogin}
-          onSignup={handleLogin}
         />
       </div>
     </ToastProvider>

@@ -1,0 +1,12 @@
+{
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "@components/*": ["./AkaTech_Components/*"],
+      "@lib/*": ["./src/lib/*"],
+      "@hooks/*": ["./src/hooks/*"]
+    },
+    "jsx": "react"
+  },
+  "include": ["src", "AkaTech_Components"]
+}

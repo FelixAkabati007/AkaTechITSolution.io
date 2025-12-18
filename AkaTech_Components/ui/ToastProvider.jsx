@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { Icons } from "./Icons";
+import { Icons } from "@components/ui/Icons";
 
 const ToastContext = createContext();
 

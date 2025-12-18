@@ -71,12 +71,16 @@ export const RECOMMENDATIONS = [
   {
     name: "Kweku Adjei",
     role: "CEO, Accra Logistics",
+    image:
+      "https://media.licdn.com/dms/image/v2/C5603AQGkLg1jWKQiCw/profile-displayphoto-shrink_800_800/profile-displayphoto-shrink_800_800/0/1565168666609?e=1767830400&v=beta&t=2R76LrRmr_6D_k7UFH0aACm_nDdbYsgBPIXSKMKCinA",
     text: "AkaTech IT Solutions revolutionized our supply chain management. Their local understanding combined with global standards created the perfect system for us.",
   },
   {
-    name: "Sarah Jenkins",
-    role: "CTO, TechFlow UK",
-    text: "Working remotely with the AkaTech team was seamless. They delivered a robust architecture that handles our European traffic effortlessly.",
+    name: "Armand (Adamu) Forster",
+    role: "CEO, KUMBISALY HERITAGE HOTEL AND RESTAURANT",
+    image:
+      "https://media.licdn.com/dms/image/v2/D4D03AQFM2Qh3hwiv2g/profile-displayphoto-shrink_800_800/profile-displayphoto-shrink_800_800/0/1673745362347?e=1767830400&v=beta&t=S3l2Y2dLdnRNhzr2-laRNRC9CXO8wYYi7DXTBw5S9B8",
+    text: "Collaborating with the AkaTech has been smooth and efficient. The system they delivered is stable, well‑structured, and perfectly optimized to support our growing guest and restaurant operations.",
   },
   {
     name: "Ama Agyemang",

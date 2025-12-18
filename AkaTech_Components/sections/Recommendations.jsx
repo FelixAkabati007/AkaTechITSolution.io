@@ -1,6 +1,6 @@
 import React from "react";
 import { motion } from "framer-motion";
-import { Icons } from "../ui/Icons";
+import { Icons } from "@components/ui/Icons";
 import { RECOMMENDATIONS } from "@lib/data";
 
 export const Recommendations = () => (
@@ -30,9 +30,17 @@ export const Recommendations = () => (
               "{rec.text}"
             </p>
             <div className="flex items-center gap-4">
-              <div className="w-12 h-12 rounded-full bg-gradient-to-br from-akatech-gold to-akatech-goldDark flex items-center justify-center text-white font-bold text-lg">
-                {rec.name.charAt(0)}
-              </div>
+              {rec.image ? (
+                <img
+                  src={rec.image}
+                  alt={rec.name}
+                  className="w-12 h-12 rounded-full object-cover border-2 border-akatech-gold"
+                />
+              ) : (
+                <div className="w-12 h-12 rounded-full bg-gradient-to-br from-akatech-gold to-akatech-goldDark flex items-center justify-center text-white font-bold text-lg">
+                  {rec.name.charAt(0)}
+                </div>
+              )}
               <div>
                 <h4 className="font-bold text-gray-900 dark:text-white text-sm">
                   {rec.name}

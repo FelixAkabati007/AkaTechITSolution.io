@@ -22,6 +22,8 @@ import {
   Settings,
   LifeBuoy,
   FileText,
+  MessageCircle,
+  Bot,
 } from "lucide-react";
 
 export const Icons = {
@@ -48,6 +50,8 @@ export const Icons = {
   Settings,
   LifeBuoy,
   FileText,
+  MessageCircle,
+  Bot,
   Google: (props) => (
     <svg
       {...props}

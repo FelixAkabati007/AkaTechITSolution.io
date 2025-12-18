@@ -1,6 +1,6 @@
 import React from "react";
 import { PRICING_PACKAGES } from "@lib/data";
-import { Icons } from "../ui/Icons";
+import { Icons } from "@components/ui/Icons";
 
 export const Pricing = ({ onSelectPlan }) => (
   <section

@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { Icons } from "../ui/Icons";
-import { Logo } from "../ui/Logo";
+import { Icons } from "@components/ui/Icons";
+import { Logo } from "@components/ui/Logo";
 import PropTypes from "prop-types";
 
 /**

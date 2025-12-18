@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Icons } from "./Icons";
-import { Logo } from "./Logo";
-import { useToast } from "./ToastProvider";
+import { Icons } from "@components/ui/Icons";
+import { Logo } from "@components/ui/Logo";
+import { useToast } from "@components/ui/ToastProvider";
 
 export const AuthModal = ({ isOpen, onClose, onLogin, onSignup }) => {
   const [isLoginView, setIsLoginView] = useState(true);
