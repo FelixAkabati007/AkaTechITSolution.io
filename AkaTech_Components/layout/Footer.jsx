@@ -183,6 +183,7 @@ export const Footer = ({ onNavigate }) => (
                 e.preventDefault();
                 onNavigate("contact");
               }}
+              className="relative z-10"
             >
               Contact
             </a>

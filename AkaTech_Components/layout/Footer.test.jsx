@@ -58,4 +58,11 @@ describe("Footer Component", () => {
     expect(screen.getByTestId("icon-instagram")).toBeInTheDocument();
     expect(screen.getByTestId("icon-linkedin")).toBeInTheDocument();
   });
+
+  it("ensures Contact link is positioned above background elements", () => {
+    render(<Footer onNavigate={mockOnNavigate} />);
+    const contactLink = screen.getByText("Contact");
+    expect(contactLink).toHaveClass("relative");
+    expect(contactLink).toHaveClass("z-10");
+  });
 });

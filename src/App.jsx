@@ -119,7 +119,7 @@ export default function App() {
           <img
             src="/background-accent.jpg"
             alt=""
-            className="fixed bottom-0 left-0 pointer-events-none w-[300px] md:w-[500px] opacity-100"
+            className="fixed bottom-0 left-0 pointer-events-none w-[300px] md:w-[500px] opacity-100 z-0"
           />
           {view === "landing" && <ScrollProgress />}
           {view !== "dashboard" && (
