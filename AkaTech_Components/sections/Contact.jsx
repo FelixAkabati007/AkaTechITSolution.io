@@ -84,30 +84,36 @@ export const Contact = () => {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                 <input
                   type="text"
+                  name="name"
+                  autoComplete="name"
                   placeholder="NAME"
-                  className="bg-gray-50 dark:bg-akatech-dark w-full p-4 text-xs text-gray-900 dark:text-white border-b border-gray-300 dark:border-white/20 focus:border-akatech-gold outline-none placeholder-gray-500 dark:placeholder-gray-600 transition-colors"
+                  className="bg-gray-50 dark:bg-akatech-dark w-full p-4 text-base text-gray-900 dark:text-white border-b border-gray-300 dark:border-white/20 focus:border-akatech-gold outline-none placeholder-gray-500 dark:placeholder-gray-600 transition-colors"
                   required
                 />
                 <input
                   type="email"
+                  name="email"
+                  autoComplete="email"
                   placeholder="EMAIL"
-                  className="bg-gray-50 dark:bg-akatech-dark w-full p-4 text-xs text-gray-900 dark:text-white border-b border-gray-300 dark:border-white/20 focus:border-akatech-gold outline-none placeholder-gray-500 dark:placeholder-gray-600 transition-colors"
+                  className="bg-gray-50 dark:bg-akatech-dark w-full p-4 text-base text-gray-900 dark:text-white border-b border-gray-300 dark:border-white/20 focus:border-akatech-gold outline-none placeholder-gray-500 dark:placeholder-gray-600 transition-colors"
                   required
                 />
               </div>
               <input
                 type="text"
+                name="subject"
                 placeholder="SUBJECT"
-                className="bg-gray-50 dark:bg-akatech-dark w-full p-4 text-xs text-gray-900 dark:text-white border-b border-gray-300 dark:border-white/20 focus:border-akatech-gold outline-none placeholder-gray-500 dark:placeholder-gray-600 transition-colors"
+                className="bg-gray-50 dark:bg-akatech-dark w-full p-4 text-base text-gray-900 dark:text-white border-b border-gray-300 dark:border-white/20 focus:border-akatech-gold outline-none placeholder-gray-500 dark:placeholder-gray-600 transition-colors"
                 required
               />
               <textarea
                 rows="4"
+                name="message"
                 placeholder="MESSAGE"
-                className="bg-gray-50 dark:bg-akatech-dark w-full p-4 text-xs text-gray-900 dark:text-white border-b border-gray-300 dark:border-white/20 focus:border-akatech-gold outline-none placeholder-gray-500 dark:placeholder-gray-600 transition-colors resize-none"
+                className="bg-gray-50 dark:bg-akatech-dark w-full p-4 text-base text-gray-900 dark:text-white border-b border-gray-300 dark:border-white/20 focus:border-akatech-gold outline-none placeholder-gray-500 dark:placeholder-gray-600 transition-colors resize-none"
                 required
               ></textarea>
-              <button className="bg-gray-900 dark:bg-white text-white dark:text-black font-bold uppercase tracking-[0.2em] text-xs px-10 py-4 w-full hover:bg-gold-gradient hover:text-black transition-all duration-300">
+              <button className="bg-gray-900 dark:bg-white text-white dark:text-black font-bold uppercase tracking-[0.2em] text-xs px-10 py-4 w-full hover:bg-gold-gradient hover:text-black transition-all duration-300 min-h-[48px]">
                 Send Message
               </button>
             </form>

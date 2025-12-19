@@ -9,6 +9,7 @@ import { AdminProjects } from "./AdminProjects";
 import { AdminBilling } from "./AdminBilling";
 import { AdminSupport } from "./AdminSupport";
 import { AdminSettings } from "./AdminSettings";
+import { AdminProfile } from "./AdminProfile";
 
 export const AdminLayout = ({ user, onLogout }) => {
   const [activeTab, setActiveTab] = useState("dashboard");
@@ -39,6 +40,8 @@ export const AdminLayout = ({ user, onLogout }) => {
         return <AdminSupport />;
       case "settings":
         return <AdminSettings />;
+      case "profile":
+        return <AdminProfile user={user} />;
       default:
         return <AdminDashboard user={user} />;
     }
@@ -178,7 +181,10 @@ export const AdminLayout = ({ user, onLogout }) => {
           <div className="relative">
             <button
               onClick={() => setIsProfileOpen(!isProfileOpen)}
-              className="flex items-center gap-4 hover:bg-gray-100 dark:hover:bg-white/5 p-2 rounded-lg transition-colors group outline-none"
+              aria-expanded={isProfileOpen}
+              aria-haspopup="true"
+              aria-label="User menu"
+              className="flex items-center gap-4 hover:bg-gray-100 dark:hover:bg-white/5 p-2 rounded-lg transition-colors group outline-none focus:ring-2 focus:ring-akatech-gold"
             >
               <div className="text-right hidden sm:block">
                 <p className="text-sm font-bold text-gray-900 dark:text-white group-hover:text-akatech-gold transition-colors">
@@ -218,33 +224,38 @@ export const AdminLayout = ({ user, onLogout }) => {
                         {user.email || "admin@akatech.com"}
                       </p>
                     </div>
-                    <div className="p-2">
-                      <button
-                        onClick={() => {
-                          setActiveTab("settings");
-                          setIsProfileOpen(false);
-                        }}
-                        className="w-full flex items-center gap-3 p-2 rounded-lg text-sm text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/5 hover:text-akatech-gold transition-colors"
-                      >
-                        <Icons.User className="w-4 h-4" /> Profile
-                      </button>
-                      <button
-                        onClick={() => {
-                          setActiveTab("settings");
-                          setIsProfileOpen(false);
-                        }}
-                        className="w-full flex items-center gap-3 p-2 rounded-lg text-sm text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/5 hover:text-akatech-gold transition-colors"
-                      >
-                        <Icons.Settings className="w-4 h-4" /> Settings
-                      </button>
-                    </div>
-                    <div className="p-2 border-t border-gray-200 dark:border-white/5">
-                      <button
-                        onClick={onLogout}
-                        className="w-full flex items-center gap-3 p-2 rounded-lg text-sm text-red-500 hover:bg-red-50 dark:hover:bg-red-900/10 transition-colors"
-                      >
-                        <Icons.LogOut className="w-4 h-4" /> Sign Out
-                      </button>
+                    <div role="menu" aria-label="User profile options">
+                      <div className="p-2">
+                        <button
+                          role="menuitem"
+                          onClick={() => {
+                            setActiveTab("profile");
+                            setIsProfileOpen(false);
+                          }}
+                          className="w-full flex items-center gap-3 p-2 rounded-lg text-sm text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/5 hover:text-akatech-gold transition-colors focus:outline-none focus:bg-gray-100 dark:focus:bg-white/5"
+                        >
+                          <Icons.User className="w-4 h-4" /> Profile
+                        </button>
+                        <button
+                          role="menuitem"
+                          onClick={() => {
+                            setActiveTab("settings");
+                            setIsProfileOpen(false);
+                          }}
+                          className="w-full flex items-center gap-3 p-2 rounded-lg text-sm text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/5 hover:text-akatech-gold transition-colors focus:outline-none focus:bg-gray-100 dark:focus:bg-white/5"
+                        >
+                          <Icons.Settings className="w-4 h-4" /> Settings
+                        </button>
+                      </div>
+                      <div className="p-2 border-t border-gray-200 dark:border-white/5">
+                        <button
+                          role="menuitem"
+                          onClick={onLogout}
+                          className="w-full flex items-center gap-3 p-2 rounded-lg text-sm text-red-500 hover:bg-red-50 dark:hover:bg-red-900/10 transition-colors focus:outline-none focus:bg-red-50 dark:focus:bg-red-900/10"
+                        >
+                          <Icons.LogOut className="w-4 h-4" /> Sign Out
+                        </button>
+                      </div>
                     </div>
                   </motion.div>
                 </>

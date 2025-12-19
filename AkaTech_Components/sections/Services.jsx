@@ -20,7 +20,7 @@ export const Services = () => (
         {SERVICES.map((service, idx) => (
           <div
             key={idx}
-            className="group p-8 border border-gray-200 dark:border-white/5 bg-white dark:bg-akatech-dark hover:border-akatech-gold/40 transition-all duration-500 hover:-translate-y-2 relative overflow-hidden shadow-sm dark:shadow-none"
+            className="group p-6 md:p-8 border border-gray-200 dark:border-white/5 bg-white dark:bg-akatech-dark hover:border-akatech-gold/40 transition-all duration-500 hover:-translate-y-2 relative overflow-hidden shadow-sm dark:shadow-none rounded-xl"
           >
             <div className="absolute top-0 left-0 w-full h-1 bg-gold-gradient transform -translate-x-full group-hover:translate-x-0 transition-transform duration-500"></div>
             <div className="mb-6 text-akatech-gold group-hover:text-black dark:group-hover:text-white transition-colors duration-300">

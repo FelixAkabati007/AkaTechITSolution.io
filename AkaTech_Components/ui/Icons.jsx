@@ -39,6 +39,14 @@ import {
   PenTool,
   MessageSquare,
   MoreHorizontal,
+  Facebook,
+  Twitter,
+  Instagram,
+  Linkedin,
+  Cookie,
+  Search,
+  Upload,
+  Send,
 } from "lucide-react";
 
 export const Icons = {
@@ -83,6 +91,14 @@ export const Icons = {
   PenTool,
   MessageSquare,
   MoreHorizontal,
+  Facebook,
+  Twitter,
+  Instagram,
+  Linkedin,
+  Cookie,
+  Search,
+  Upload,
+  Send,
   Google: (props) => (
     <svg
       {...props}

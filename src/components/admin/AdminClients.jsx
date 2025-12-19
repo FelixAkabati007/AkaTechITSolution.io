@@ -17,10 +17,19 @@ export const AdminClients = () => {
 
   const handleAddUser = (e) => {
     e.preventDefault();
-    mockService.saveUser({ ...newUser, password: "password123" }); // Default password
+    if (newUser.id) {
+      mockService.updateUser(newUser);
+    } else {
+      mockService.saveUser({ ...newUser, password: "password123" }); // Default password
+    }
     setUsers(mockService.getUsers());
     setIsModalOpen(false);
     setNewUser({ name: "", email: "", role: "client" });
+  };
+
+  const handleEditUser = (user) => {
+    setNewUser(user);
+    setIsModalOpen(true);
   };
 
   const handleDeleteUser = (id) => {
@@ -86,12 +95,19 @@ export const AdminClients = () => {
                     </span>
                   </td>
                   <td className="px-6 py-4 text-right flex justify-end gap-2">
-                    <button className="p-2 text-gray-400 hover:text-akatech-gold transition-colors">
+                    <button
+                      onClick={() => handleEditUser(user)}
+                      className="p-2 text-gray-400 hover:text-akatech-gold transition-colors"
+                      aria-label="Edit user"
+                      title="Edit User"
+                    >
                       <Icons.PenTool className="w-4 h-4" />
                     </button>
                     <button
                       onClick={() => handleDeleteUser(user.id)}
                       className="p-2 text-gray-400 hover:text-red-500 transition-colors"
+                      aria-label="Delete user"
+                      title="Delete User"
                     >
                       <Icons.Trash className="w-4 h-4" />
                     </button>
@@ -108,12 +124,12 @@ export const AdminClients = () => {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
           <div className="bg-white dark:bg-akatech-card w-full max-w-md rounded-lg shadow-xl p-6 border border-gray-200 dark:border-white/10">
             <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-6">
-              Add New User
+              {newUser.id ? "Edit User" : "Add New User"}
             </h3>
             <form
               onSubmit={handleAddUser}
               className="space-y-4"
-              aria-label="add-user-form"
+              aria-label={newUser.id ? "edit-user-form" : "add-user-form"}
             >
               <div>
                 <label
@@ -184,7 +200,7 @@ export const AdminClients = () => {
                   type="submit"
                   className="px-6 py-2 bg-akatech-gold text-white rounded-lg font-bold hover:bg-akatech-goldDark transition-colors"
                 >
-                  Create User
+                  {newUser.id ? "Update User" : "Create User"}
                 </button>
               </div>
             </form>

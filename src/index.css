@@ -140,14 +140,14 @@
 
   /* Button Styles */
   .btn-primary {
-    @apply px-6 py-3 rounded-lg font-bold uppercase tracking-wider text-xs transition-all duration-300
+    @apply px-6 py-4 min-h-[48px] flex items-center justify-center rounded-lg font-bold uppercase tracking-wider text-xs transition-all duration-300
            text-white
            hover:shadow-lg hover:shadow-akatech-gold/20 hover:scale-[1.02] active:scale-[0.98];
     background-image: var(--image-gold-gradient);
   }
 
   .btn-outline {
-    @apply px-6 py-3 rounded-lg font-bold uppercase tracking-wider text-xs transition-all duration-300
+    @apply px-6 py-4 min-h-[48px] flex items-center justify-center rounded-lg font-bold uppercase tracking-wider text-xs transition-all duration-300
            border border-akatech-gold/30 text-akatech-goldDark dark:text-akatech-gold
            hover:bg-akatech-gold/10 hover:border-akatech-gold;
   }

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Icons } from "@components/ui/Icons";
 import { mockService } from "@lib/mockData";
@@ -6,56 +6,124 @@ import { mockService } from "@lib/mockData";
 export const ClientProjects = ({ user }) => {
   const [projects, setProjects] = useState([]);
   const [selectedProject, setSelectedProject] = useState(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [isRequestModalOpen, setIsRequestModalOpen] = useState(false);
+  const [requestMessage, setRequestMessage] = useState("");
+  const fileInputRef = useRef(null);
 
   useEffect(() => {
     setProjects(mockService.getProjects(user.id));
   }, [user.id]);
 
+  const filteredProjects = projects.filter(
+    (project) =>
+      project.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      project.description.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  const handleFileUpload = (e) => {
+    const file = e.target.files[0];
+    if (file && selectedProject) {
+      // Simulate file upload
+      const newFile = {
+        name: file.name,
+        date: new Date().toLocaleDateString(),
+        size: `${(file.size / 1024).toFixed(1)} KB`,
+      };
+      
+      const updatedProject = {
+        ...selectedProject,
+        files: [...(selectedProject.files || []), newFile],
+      };
+
+      // Update local state and mock service (if applicable)
+      setSelectedProject(updatedProject);
+      setProjects(projects.map(p => p.id === updatedProject.id ? updatedProject : p));
+      
+      // Reset input
+      e.target.value = "";
+    }
+  };
+
+  const handleRequestUpdate = (e) => {
+    e.preventDefault();
+    if (!requestMessage.trim()) return;
+
+    // Create a support ticket for the update request
+    mockService.createTicket({
+      clientId: user.id,
+      subject: `Update Request: ${selectedProject.title}`,
+      priority: "Normal",
+      message: requestMessage,
+      sender: "Client",
+    });
+
+    setIsRequestModalOpen(false);
+    setRequestMessage("");
+    alert("Update request sent successfully!");
+  };
+
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <h2 className="text-2xl font-serif text-gray-900 dark:text-white">
           My Projects
         </h2>
+        <div className="relative w-full md:w-64">
+          <Icons.Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+          <input
+            type="text"
+            placeholder="Search projects..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full pl-10 pr-4 py-2 rounded-lg border border-gray-200 dark:border-white/10 bg-white dark:bg-white/5 text-sm focus:ring-2 focus:ring-akatech-gold outline-none transition-all"
+          />
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Project List */}
         <div className="lg:col-span-1 space-y-4">
-          {projects.map((project) => (
-            <motion.div
-              key={project.id}
-              layoutId={`project-${project.id}`}
-              onClick={() => setSelectedProject(project)}
-              className={`p-6 rounded-lg border cursor-pointer transition-all ${
-                selectedProject?.id === project.id
-                  ? "bg-white dark:bg-akatech-card border-akatech-gold shadow-md"
-                  : "bg-white dark:bg-akatech-card border-gray-200 dark:border-white/10 hover:border-akatech-gold/50"
-              }`}
-            >
-              <div className="flex justify-between items-start mb-2">
-                <h3 className="font-bold text-gray-900 dark:text-white">
-                  {project.title}
-                </h3>
-                <span
-                  className={`text-[10px] uppercase font-bold px-2 py-1 rounded ${
-                    project.status === "In Progress"
-                      ? "bg-akatech-gold/20 text-akatech-gold"
-                      : "bg-gray-200 dark:bg-gray-700 text-gray-500"
-                  }`}
-                >
-                  {project.status}
-                </span>
-              </div>
-              <p className="text-sm text-gray-500 dark:text-gray-400 line-clamp-2">
-                {project.description}
-              </p>
-              <div className="mt-4 flex items-center gap-2 text-xs text-gray-400">
-                <Icons.Activity className="w-3 h-3" />
-                <span>Phase: {project.currentPhase}</span>
-              </div>
-            </motion.div>
-          ))}
+          {filteredProjects.length > 0 ? (
+            filteredProjects.map((project) => (
+              <motion.div
+                key={project.id}
+                layoutId={`project-${project.id}`}
+                onClick={() => setSelectedProject(project)}
+                className={`p-6 rounded-lg border cursor-pointer transition-all ${
+                  selectedProject?.id === project.id
+                    ? "bg-white dark:bg-akatech-card border-akatech-gold shadow-md"
+                    : "bg-white dark:bg-akatech-card border-gray-200 dark:border-white/10 hover:border-akatech-gold/50"
+                }`}
+              >
+                <div className="flex justify-between items-start mb-2">
+                  <h3 className="font-bold text-gray-900 dark:text-white">
+                    {project.title}
+                  </h3>
+                  <span
+                    className={`text-[10px] uppercase font-bold px-2 py-1 rounded ${
+                      project.status === "In Progress"
+                        ? "bg-akatech-gold/20 text-akatech-gold"
+                        : "bg-gray-200 dark:bg-gray-700 text-gray-500"
+                    }`}
+                  >
+                    {project.status}
+                  </span>
+                </div>
+                <p className="text-sm text-gray-500 dark:text-gray-400 line-clamp-2">
+                  {project.description}
+                </p>
+                <div className="mt-4 flex items-center gap-2 text-xs text-gray-400">
+                  <Icons.Activity className="w-3 h-3" />
+                  <span>Phase: {project.currentPhase}</span>
+                </div>
+              </motion.div>
+            ))
+          ) : (
+            <div className="text-center py-8 text-gray-500 dark:text-gray-400">
+              No projects found matching your search.
+            </div>
+          )}
         </div>
 
         {/* Project Details */}
@@ -70,9 +138,18 @@ export const ClientProjects = ({ user }) => {
                 className="bg-white dark:bg-akatech-card rounded-lg border border-gray-200 dark:border-white/10 p-8"
               >
                 <div className="border-b border-gray-200 dark:border-white/10 pb-6 mb-6">
-                  <h2 className="text-2xl font-serif text-gray-900 dark:text-white mb-2">
-                    {selectedProject.title}
-                  </h2>
+                  <div className="flex justify-between items-start mb-4">
+                    <h2 className="text-2xl font-serif text-gray-900 dark:text-white">
+                      {selectedProject.title}
+                    </h2>
+                    <button
+                      onClick={() => setIsRequestModalOpen(true)}
+                      className="px-3 py-1.5 bg-gray-100 dark:bg-white/10 text-gray-700 dark:text-white text-xs font-bold uppercase tracking-wider rounded hover:bg-akatech-gold hover:text-white transition-colors flex items-center gap-2"
+                    >
+                      <Icons.MessageSquare className="w-3 h-3" />
+                      Request Update
+                    </button>
+                  </div>
                   <p className="text-gray-600 dark:text-gray-300">
                     {selectedProject.description}
                   </p>
@@ -115,10 +192,25 @@ export const ClientProjects = ({ user }) => {
 
                   {/* Deliverables */}
                   <div>
-                    <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
-                      <Icons.FileText className="w-4 h-4 text-akatech-gold" />{" "}
-                      Deliverables
-                    </h3>
+                    <div className="flex justify-between items-center mb-4">
+                      <h3 className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                        <Icons.FileText className="w-4 h-4 text-akatech-gold" />{" "}
+                        Deliverables
+                      </h3>
+                      <button
+                        onClick={() => fileInputRef.current?.click()}
+                        className="text-xs text-akatech-gold hover:underline font-bold flex items-center gap-1"
+                      >
+                        <Icons.Upload className="w-3 h-3" /> Upload
+                      </button>
+                      <input
+                        type="file"
+                        ref={fileInputRef}
+                        className="hidden"
+                        onChange={handleFileUpload}
+                      />
+                    </div>
+                    
                     {selectedProject.files &&
                     selectedProject.files.length > 0 ? (
                       <ul className="space-y-3">
@@ -138,9 +230,8 @@ export const ClientProjects = ({ user }) => {
                                 </p>
                               </div>
                             </div>
-                            <button className="text-gray-400 hover:text-akatech-gold transition-colors">
-                              <Icons.CheckCircle className="w-4 h-4" />{" "}
-                              {/* Using CheckCircle as Download proxy */}
+                            <button className="text-gray-400 hover:text-akatech-gold transition-colors p-1 rounded hover:bg-gray-100 dark:hover:bg-white/10" title="Download">
+                              <Icons.Download className="w-4 h-4" />
                             </button>
                           </li>
                         ))}
@@ -163,6 +254,54 @@ export const ClientProjects = ({ user }) => {
           </AnimatePresence>
         </div>
       </div>
+
+      {/* Request Update Modal */}
+      {isRequestModalOpen && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-akatech-card p-6 rounded-lg w-full max-w-md border border-gray-200 dark:border-white/10 shadow-xl">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-xl font-bold text-gray-900 dark:text-white">
+                Request Project Update
+              </h3>
+              <button
+                onClick={() => setIsRequestModalOpen(false)}
+                className="text-gray-400 hover:text-red-500 transition-colors"
+              >
+                <Icons.X className="w-5 h-5" />
+              </button>
+            </div>
+            <form onSubmit={handleRequestUpdate} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Message
+                </label>
+                <textarea
+                  required
+                  placeholder="What specific update would you like to request?"
+                  className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-white/10 bg-transparent text-gray-900 dark:text-white focus:ring-2 focus:ring-akatech-gold outline-none h-32 resize-none"
+                  value={requestMessage}
+                  onChange={(e) => setRequestMessage(e.target.value)}
+                />
+              </div>
+              <div className="flex justify-end gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setIsRequestModalOpen(false)}
+                  className="px-4 py-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 text-sm font-medium"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 bg-akatech-gold text-white rounded-lg font-bold hover:bg-akatech-goldDark transition-colors text-sm"
+                >
+                  Send Request
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

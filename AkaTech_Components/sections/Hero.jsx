@@ -66,7 +66,7 @@ export const Hero = () => {
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ duration: 0.8, delay: 0.2 }}
-          className="relative flex justify-center h-[500px] md:h-[650px] items-center scale-[0.85] sm:scale-100 transition-transform duration-300"
+          className="relative flex justify-center h-[500px] md:h-[650px] items-center scale-[0.85] sm:scale-100 transition-transform duration-300 mt-8 md:mt-0"
         >
           <motion.div
             animate={{ y: [0, -10, 0] }}
@@ -76,13 +76,14 @@ export const Hero = () => {
               ease: "easeInOut",
             }}
             whileHover={{ scale: 1.05, y: -5 }}
-            className="hidden sm:flex absolute top-10 -left-4 md:-left-16 z-10 p-4 rounded-2xl shadow-2xl items-center gap-4 border border-gray-200/50 dark:border-white/10 backdrop-blur-xl bg-gradient-to-br from-white/80 to-white/40 dark:from-white/10 dark:to-transparent group transition-all duration-300"
+            className="hidden md:flex absolute top-10 -left-4 md:-left-16 z-10 p-4 rounded-2xl shadow-2xl items-center gap-4 border border-gray-200/50 dark:border-white/10 backdrop-blur-xl bg-gradient-to-br from-white/80 to-white/40 dark:from-white/10 dark:to-transparent group transition-all duration-300"
           >
             <div className="w-12 h-12 flex items-center justify-center relative">
               <div className="absolute inset-0 bg-blue-500/20 blur-xl rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
               <img
                 src="https://static.vecteezy.com/system/resources/thumbnails/047/247/457/small_2x/3d-code-icon-programming-code-symbols-software-and-web-development-icon-png.png"
                 alt="Code"
+                loading="lazy"
                 className="w-full h-full object-contain drop-shadow-lg transform group-hover:rotate-12 transition-transform duration-500"
               />
             </div>
@@ -105,13 +106,14 @@ export const Hero = () => {
               delay: 1,
             }}
             whileHover={{ scale: 1.05 }}
-            className="hidden sm:flex absolute top-1/2 -right-4 md:-right-16 z-10 p-4 rounded-2xl shadow-[0_10px_40px_-10px_rgba(197,160,89,0.3)] items-center gap-4 border border-akatech-gold/30 bg-white/90 dark:bg-[#0a0a0a]/80 backdrop-blur-md group"
+            className="hidden md:flex absolute top-1/2 -right-4 md:-right-16 z-10 p-4 rounded-2xl shadow-[0_10px_40px_-10px_rgba(197,160,89,0.3)] items-center gap-4 border border-akatech-gold/30 bg-white/90 dark:bg-[#0a0a0a]/80 backdrop-blur-md group"
           >
             <div className="w-12 h-12 rounded-full border border-akatech-gold/30 p-0.5 relative overflow-hidden group-hover:border-akatech-gold transition-colors duration-500">
               <div className="absolute inset-0 bg-akatech-gold/10 animate-pulse"></div>
               <img
                 src="/analytics-3d.jpg"
                 alt="Analytics"
+                loading="lazy"
                 className="w-full h-full rounded-full object-cover opacity-90 group-hover:opacity-100 transition-opacity"
               />
             </div>
@@ -134,13 +136,14 @@ export const Hero = () => {
               delay: 0.5,
             }}
             whileHover={{ scale: 1.05 }}
-            className="hidden sm:flex absolute bottom-20 -left-6 md:-left-20 z-10 p-4 rounded-2xl shadow-2xl items-center gap-4 border border-gray-200/50 dark:border-white/20 bg-white/80 dark:bg-white/10 backdrop-blur-2xl group overflow-hidden"
+            className="hidden md:flex absolute bottom-20 -left-6 md:-left-20 z-10 p-4 rounded-2xl shadow-2xl items-center gap-4 border border-gray-200/50 dark:border-white/20 bg-white/80 dark:bg-white/10 backdrop-blur-2xl group overflow-hidden"
           >
             <div className="absolute inset-0 bg-gradient-to-tr from-purple-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
             <div className="w-12 h-12 flex items-center justify-center relative z-10">
               <img
                 src="/ui-ux-3d.png"
                 alt="UI/UX"
+                loading="lazy"
                 className="w-full h-full object-contain drop-shadow-[0_0_15px_rgba(168,85,247,0.5)] transform group-hover:scale-110 transition-transform duration-500"
               />
             </div>

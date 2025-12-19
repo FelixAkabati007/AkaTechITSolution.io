@@ -1,10 +1,11 @@
 import React from "react";
 import { Logo } from "../ui/Logo";
+import { Icons } from "../ui/Icons";
 
 export const Footer = ({ onNavigate }) => (
   <footer className="bg-gray-100 dark:bg-[#050505] py-16 border-t border-gray-200 dark:border-white/5 text-center md:text-left transition-colors duration-500">
-    <div className="container mx-auto px-4 grid md:grid-cols-4 gap-12">
-      <div>
+    <div className="container mx-auto px-4 grid grid-cols-2 md:grid-cols-5 gap-8">
+      <div className="col-span-2 md:col-span-1">
         <div className="flex items-center gap-2 mb-6 justify-center md:justify-start">
           <Logo className="w-12 h-12" />
           <h3 className="text-xl font-serif font-bold text-gray-900 dark:text-white transition-colors duration-500">
@@ -26,16 +27,114 @@ export const Footer = ({ onNavigate }) => (
         </h4>
         <ul className="space-y-3 text-xs text-gray-500">
           <li className="hover:text-akatech-gold cursor-pointer transition">
-            Web Development
+            <a
+              href="#"
+              onClick={(e) => {
+                e.preventDefault();
+                onNavigate("landing");
+              }}
+            >
+              Web Development
+            </a>
           </li>
           <li className="hover:text-akatech-gold cursor-pointer transition">
-            System Architecture
+            <a
+              href="#"
+              onClick={(e) => {
+                e.preventDefault();
+                onNavigate("landing");
+              }}
+            >
+              System Architecture
+            </a>
           </li>
           <li className="hover:text-akatech-gold cursor-pointer transition">
-            POS Systems
+            <a
+              href="#"
+              onClick={(e) => {
+                e.preventDefault();
+                onNavigate("landing");
+              }}
+            >
+              POS Systems
+            </a>
           </li>
           <li className="hover:text-akatech-gold cursor-pointer transition">
-            Graphic Design
+            <a
+              href="#"
+              onClick={(e) => {
+                e.preventDefault();
+                onNavigate("landing");
+              }}
+            >
+              Graphic Design
+            </a>
+          </li>
+        </ul>
+      </div>
+      <div>
+        <h4 className="text-gray-900 dark:text-white font-bold mb-6 text-xs uppercase tracking-widest transition-colors duration-500">
+          Quick Links
+        </h4>
+        <ul className="space-y-3 text-xs text-gray-500">
+          <li className="hover:text-akatech-gold cursor-pointer transition">
+            <a
+              href="#"
+              onClick={(e) => {
+                e.preventDefault();
+                onNavigate("landing");
+              }}
+              aria-label="Go to Home"
+            >
+              Home
+            </a>
+          </li>
+          <li className="hover:text-akatech-gold cursor-pointer transition">
+            <a
+              href="#"
+              onClick={(e) => {
+                e.preventDefault();
+                onNavigate("contact");
+              }}
+              aria-label="Get Help & Support"
+            >
+              Help & Support
+            </a>
+          </li>
+          <li className="transition">
+            <span className="block mb-2 text-gray-600 dark:text-gray-400 font-medium">
+              Connect with Us
+            </span>
+            <div className="flex gap-3 justify-center md:justify-start">
+              <a
+                href="#"
+                aria-label="Facebook"
+                className="hover:text-akatech-gold transition text-gray-500 dark:text-gray-400"
+              >
+                <Icons.Facebook size={16} />
+              </a>
+              <a
+                href="#"
+                aria-label="Twitter"
+                className="hover:text-akatech-gold transition text-gray-500 dark:text-gray-400"
+              >
+                <Icons.Twitter size={16} />
+              </a>
+              <a
+                href="#"
+                aria-label="Instagram"
+                className="hover:text-akatech-gold transition text-gray-500 dark:text-gray-400"
+              >
+                <Icons.Instagram size={16} />
+              </a>
+              <a
+                href="#"
+                aria-label="LinkedIn"
+                className="hover:text-akatech-gold transition text-gray-500 dark:text-gray-400"
+              >
+                <Icons.Linkedin size={16} />
+              </a>
+            </div>
           </li>
         </ul>
       </div>

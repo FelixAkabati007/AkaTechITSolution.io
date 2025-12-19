@@ -150,16 +150,17 @@ export const Navbar = ({
         <div className="md:hidden flex items-center gap-4">
           <button
             onClick={cycleTheme}
-            className="text-gray-600 dark:text-akatech-gold p-2"
+            className="text-gray-600 dark:text-akatech-gold p-3 min-w-[48px] min-h-[48px] flex items-center justify-center"
             aria-label={`Current theme is ${getThemeLabel()}. Click to switch theme.`}
           >
             {getThemeIcon()}
           </button>
           <button
-            className="text-akatech-gold"
+            className="text-akatech-gold p-3 min-w-[48px] min-h-[48px] flex items-center justify-center"
             onClick={() => setMobileOpen(!mobileOpen)}
+            aria-label="Toggle mobile menu"
           >
-            {mobileOpen ? <Icons.X /> : <Icons.Menu />}
+            {mobileOpen ? <Icons.X size={24} /> : <Icons.Menu size={24} />}
           </button>
         </div>
       </div>
@@ -170,34 +171,34 @@ export const Navbar = ({
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: "auto" }}
             exit={{ opacity: 0, height: 0 }}
-            className="md:hidden bg-white dark:bg-akatech-card border-b border-gray-200 dark:border-akatech-gold/20 overflow-hidden"
+            className="md:hidden bg-white dark:bg-akatech-card border-b border-gray-200 dark:border-akatech-gold/20 overflow-hidden shadow-xl"
           >
-            <div className="flex flex-col p-6 space-y-6">
+            <div className="flex flex-col p-6 space-y-2">
               <button
                 onClick={() => handleNav("services")}
-                className="text-left text-gray-600 dark:text-gray-300 text-sm uppercase tracking-widest py-2"
+                className="text-left text-gray-600 dark:text-gray-300 text-sm uppercase tracking-widest py-4 border-b border-gray-100 dark:border-white/5 active:bg-gray-50 dark:active:bg-white/5 transition-colors"
               >
                 Services
               </button>
               <button
                 onClick={() => handleNav("portfolio")}
-                className="text-left text-gray-600 dark:text-gray-300 text-sm uppercase tracking-widest py-2"
+                className="text-left text-gray-600 dark:text-gray-300 text-sm uppercase tracking-widest py-4 border-b border-gray-100 dark:border-white/5 active:bg-gray-50 dark:active:bg-white/5 transition-colors"
               >
                 Portfolio
               </button>
               <button
                 onClick={() => handleNav("pricing")}
-                className="text-left text-gray-600 dark:text-gray-300 text-sm uppercase tracking-widest py-2"
+                className="text-left text-gray-600 dark:text-gray-300 text-sm uppercase tracking-widest py-4 border-b border-gray-100 dark:border-white/5 active:bg-gray-50 dark:active:bg-white/5 transition-colors"
               >
                 Pricing
               </button>
-              <div className="flex items-center justify-between border-t border-gray-200 dark:border-white/10 pt-4">
+              <div className="flex items-center justify-between border-t border-gray-200 dark:border-white/10 pt-6 mt-4">
                 <span className="text-xs font-bold uppercase tracking-widest text-gray-500">
                   Theme: {getThemeLabel()}
                 </span>
                 <button
                   onClick={cycleTheme}
-                  className="text-akatech-gold p-2 border border-akatech-gold/30 rounded"
+                  className="text-akatech-gold p-3 min-w-[44px] min-h-[44px] border border-akatech-gold/30 rounded flex items-center justify-center"
                 >
                   {getThemeIcon()}
                 </button>

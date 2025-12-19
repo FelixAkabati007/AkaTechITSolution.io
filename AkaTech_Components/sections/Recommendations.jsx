@@ -23,7 +23,7 @@ export const Recommendations = () => (
             whileInView={{ opacity: 1, y: 0 }}
             transition={{ delay: i * 0.1 }}
             viewport={{ once: true }}
-            className="bg-gray-50 dark:bg-akatech-card p-8 rounded-xl border border-gray-200 dark:border-white/5 relative shadow-sm dark:shadow-none"
+            className="bg-gray-50 dark:bg-akatech-card p-6 md:p-8 rounded-xl border border-gray-200 dark:border-white/5 relative shadow-sm dark:shadow-none"
           >
             <Icons.Quote className="text-akatech-gold/20 w-12 h-12 absolute top-6 right-6" />
             <p className="text-gray-600 dark:text-gray-400 mb-6 italic relative z-10 text-sm leading-relaxed">

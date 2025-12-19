@@ -68,7 +68,7 @@ export const Pricing = ({ onSelectPlan }) => (
 
             <button
               onClick={() => onSelectPlan(pkg)}
-              className={`w-full py-4 text-xs font-bold uppercase tracking-widest transition-all ${
+              className={`w-full py-4 text-xs font-bold uppercase tracking-widest transition-all min-h-[48px] ${
                 pkg.recommended
                   ? "bg-gold-gradient text-black hover:shadow-[0_0_15px_rgba(197,160,89,0.4)]"
                   : "border border-gray-300 dark:border-gray-700 text-gray-900 dark:text-white hover:border-akatech-gold hover:text-akatech-gold"

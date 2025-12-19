@@ -57,6 +57,51 @@ export const initialProjects = [
     ],
     files: [],
   },
+  {
+    id: 3,
+    clientId: 1,
+    title: "Inventory Management System",
+    description:
+      "Automated inventory tracking with barcode scanning and real-time stock alerts.",
+    status: "Pending",
+    currentPhase: "Initiation",
+    phases: [
+      { name: "Initiation", status: "Pending", date: "TBD" },
+      { name: "Design", status: "Pending", date: "TBD" },
+      { name: "Development", status: "Pending", date: "TBD" },
+    ],
+    files: [],
+  },
+  {
+    id: 4,
+    clientId: 1,
+    title: "HR & Payroll System",
+    description:
+      "Comprehensive employee management and automated payroll processing system.",
+    status: "Pending",
+    currentPhase: "Initiation",
+    phases: [
+      { name: "Initiation", status: "Pending", date: "TBD" },
+      { name: "Design", status: "Pending", date: "TBD" },
+      { name: "Development", status: "Pending", date: "TBD" },
+    ],
+    files: [],
+  },
+  {
+    id: 5,
+    clientId: 1,
+    title: "CRM Integration",
+    description:
+      "Custom CRM solution integrated with existing sales and support workflows.",
+    status: "Pending",
+    currentPhase: "Initiation",
+    phases: [
+      { name: "Initiation", status: "Pending", date: "TBD" },
+      { name: "Design", status: "Pending", date: "TBD" },
+      { name: "Development", status: "Pending", date: "TBD" },
+    ],
+    files: [],
+  },
 ];
 
 export const initialInvoices = [
@@ -149,6 +194,16 @@ export const initialActivities = [
   },
 ];
 
+export const initialSettings = {
+  siteName: "AkaTech IT Solutions",
+  emailNotifications: true,
+  maintenanceMode: false,
+  theme: "light",
+  adminEmail: "admin@akatech.com",
+  cookiePolicyVersion: "1.0.0",
+  enforceSecureCookies: true,
+};
+
 // Simple simulation of a database service
 class MockService {
   constructor() {
@@ -162,6 +217,8 @@ class MockService {
       JSON.parse(localStorage.getItem("tickets")) || initialTickets;
     this.activities =
       JSON.parse(localStorage.getItem("activities")) || initialActivities;
+    this.settings =
+      JSON.parse(localStorage.getItem("settings")) || initialSettings;
   }
 
   _save(key, data) {
@@ -327,6 +384,16 @@ class MockService {
 
   getActivities() {
     return this.activities;
+  }
+
+  getSettings() {
+    return this.settings;
+  }
+
+  saveSettings(newSettings) {
+    this.settings = { ...this.settings, ...newSettings };
+    this._save("settings", this.settings);
+    return this.settings;
   }
 }
 

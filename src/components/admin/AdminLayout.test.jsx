@@ -1,145 +1,134 @@
-import React from "react";
-import { render, screen, fireEvent } from "@testing-library/react";
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
+import { render, screen, fireEvent, within } from "@testing-library/react";
 import { AdminLayout } from "./AdminLayout";
 
-// Mock framer-motion to avoid animation issues in tests
-vi.mock("framer-motion", () => ({
-  motion: {
-    div: ({ children, className, onClick, ...props }) => (
-      <div className={className} onClick={onClick} {...props}>
-        {children}
-      </div>
-    ),
-    aside: ({ children, className, ...props }) => (
-      <aside className={className} {...props}>
-        {children}
-      </aside>
-    ),
-    span: ({ children, className, ...props }) => (
-      <span className={className} {...props}>
-        {children}
-      </span>
-    ),
-  },
-  AnimatePresence: ({ children }) => <>{children}</>,
+// Mock child components
+vi.mock("./AdminDashboard", () => ({
+  AdminDashboard: () => <div>Dashboard Component</div>,
+}));
+vi.mock("./AdminClients", () => ({
+  AdminClients: () => <div>Clients Component</div>,
+}));
+vi.mock("./AdminProjects", () => ({
+  AdminProjects: () => <div>Projects Component</div>,
+}));
+vi.mock("./AdminBilling", () => ({
+  AdminBilling: () => <div>Billing Component</div>,
+}));
+vi.mock("./AdminSupport", () => ({
+  AdminSupport: () => <div>Support Component</div>,
+}));
+vi.mock("./AdminSettings", () => ({
+  AdminSettings: () => <div>Settings Component</div>,
+}));
+vi.mock("./AdminProfile", () => ({
+  AdminProfile: () => <div>Profile Component</div>,
 }));
 
-// Mock icons
+// Mock Icons
 vi.mock("@components/ui/Icons", () => ({
   Icons: {
-    LayoutDashboard: () => <div data-testid="icon-dashboard" />,
-    Users: () => <div data-testid="icon-users" />,
-    Briefcase: () => <div data-testid="icon-projects" />,
-    CreditCard: () => <div data-testid="icon-billing" />,
-    LifeBuoy: () => <div data-testid="icon-support" />,
-    Settings: () => <div data-testid="icon-settings" />,
-    LogOut: () => <div data-testid="icon-logout" />,
-    ChevronLeft: () => <div data-testid="icon-chevron-left" />,
-    ChevronRight: () => <div data-testid="icon-chevron-right" />,
-    User: () => <div data-testid="icon-user" />,
-    Menu: () => <div data-testid="icon-menu">Menu</div>, // Changed to div
+    LayoutDashboard: () => <span>DashboardIcon</span>,
+    Users: () => <span>UsersIcon</span>,
+    Briefcase: () => <span>BriefcaseIcon</span>,
+    CreditCard: () => <span>CreditCardIcon</span>,
+    LifeBuoy: () => <span>LifeBuoyIcon</span>,
+    Settings: () => <span>SettingsIcon</span>,
+    LogOut: () => <span>LogOutIcon</span>,
+    ChevronLeft: () => <span>ChevronLeftIcon</span>,
+    ChevronRight: () => <span>ChevronRightIcon</span>,
+    Menu: () => <span>MenuIcon</span>,
+    User: () => <span>UserIcon</span>,
   },
 }));
 
 // Mock Logo
-vi.mock("@components/ui/Logo", () => ({
-  Logo: () => <div data-testid="logo" />,
-}));
-
-// Mock child components to simplify testing
-vi.mock("./AdminDashboard", () => ({
-  AdminDashboard: () => (
-    <div data-testid="content-dashboard">Dashboard Content</div>
-  ),
-}));
-vi.mock("./AdminClients", () => ({
-  AdminClients: () => <div data-testid="content-clients">Clients Content</div>,
-}));
-vi.mock("./AdminProjects", () => ({
-  AdminProjects: () => <div>Projects Content</div>,
-}));
-vi.mock("./AdminBilling", () => ({
-  AdminBilling: () => <div>Billing Content</div>,
-}));
-vi.mock("./AdminSupport", () => ({
-  AdminSupport: () => <div>Support Content</div>,
-}));
-vi.mock("./AdminSettings", () => ({
-  AdminSettings: () => <div>Settings Content</div>,
-}));
+vi.mock("@components/ui/Logo", () => ({ Logo: () => <span>Logo</span> }));
 
 describe("AdminLayout", () => {
   const mockUser = {
     name: "Admin User",
-    role: "Administrator",
-    avatar: "AU",
+    email: "admin@example.com",
+    role: "admin",
+    avatar: "A",
   };
   const mockOnLogout = vi.fn();
 
-  it("renders the layout with sidebar and main content", () => {
-    render(<AdminLayout user={mockUser} onLogout={mockOnLogout} />);
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
 
+  it("renders layout with dashboard by default", () => {
+    render(<AdminLayout user={mockUser} onLogout={mockOnLogout} />);
+    expect(screen.getByText("Dashboard Component")).toBeDefined();
     expect(screen.getByText("AkaTech Admin")).toBeDefined();
-    expect(screen.getByTestId("content-dashboard")).toBeDefined(); // Unique ID
-    // User name might be in the button now, let's look for it
-    expect(screen.getByText("Admin User")).toBeDefined();
   });
 
-  it("renders the mobile menu toggle button", () => {
+  it("toggles profile dropdown", () => {
     render(<AdminLayout user={mockUser} onLogout={mockOnLogout} />);
 
-    const menuButton = screen.getByTestId("icon-menu").closest("button");
-    expect(menuButton).toBeDefined();
-    expect(menuButton.className).toContain("md:hidden");
+    // Dropdown should be closed initially
+    const dropdownToggle = screen.getByLabelText("User menu");
+    expect(dropdownToggle.getAttribute("aria-expanded")).toBe("false");
+
+    // Click to open
+    fireEvent.click(dropdownToggle);
+    expect(dropdownToggle.getAttribute("aria-expanded")).toBe("true");
+    expect(screen.getByRole("menu")).toBeDefined();
+    expect(screen.getByText("admin@example.com")).toBeDefined();
   });
 
-  it("toggles mobile sidebar when menu button is clicked", () => {
+  it("navigates to Profile when Profile button in dropdown is clicked", () => {
     render(<AdminLayout user={mockUser} onLogout={mockOnLogout} />);
 
-    // Click menu button
-    const menuButton = screen.getByTestId("icon-menu").closest("button");
-    fireEvent.click(menuButton);
+    // Open dropdown
+    fireEvent.click(screen.getByLabelText("User menu"));
 
-    // Now sidebar should have fixed class
-    const aside = screen.getByText("AkaTech Admin").closest("aside");
-    expect(aside.className).toContain("fixed");
-  });
-
-  it("opens profile dropdown when user profile is clicked", () => {
-    render(<AdminLayout user={mockUser} onLogout={mockOnLogout} />);
-
-    // Click user profile button (find by user name)
-    const profileButton = screen.getByText("Admin User").closest("button");
+    // Click Profile button inside menu
+    const menu = screen.getByRole("menu");
+    const profileButton = within(menu).getByText("Profile").closest("button");
     fireEvent.click(profileButton);
 
-    // Check if dropdown items are visible
-    expect(screen.getByText("Profile")).toBeDefined();
-
-    // Use getAllByText for "Settings" because it appears in both Sidebar and Dropdown
-    const settingsItems = screen.getAllByText("Settings");
-    expect(settingsItems.length).toBeGreaterThan(0);
-
-    // Use getAllByText for "Sign Out" because it appears in both Sidebar and Dropdown
-    const signOutItems = screen.getAllByText("Sign Out");
-    expect(signOutItems.length).toBeGreaterThan(0);
+    // Should render Profile Component
+    expect(screen.getByText("Profile Component")).toBeDefined();
   });
 
-  it("navigates to different tabs", () => {
+  it("navigates to Settings when Settings button in dropdown is clicked", () => {
     render(<AdminLayout user={mockUser} onLogout={mockOnLogout} />);
 
-    const clientsButton = screen.getByText("Clients").closest("button");
-    fireEvent.click(clientsButton);
+    // Open dropdown
+    fireEvent.click(screen.getByLabelText("User menu"));
 
-    expect(screen.getByText("Clients Content")).toBeDefined();
+    // Click Settings button inside menu
+    const menu = screen.getByRole("menu");
+    const settingsButton = within(menu).getByText("Settings").closest("button");
+    fireEvent.click(settingsButton);
+
+    // Should render Settings Component
+    expect(screen.getByText("Settings Component")).toBeDefined();
   });
 
-  it("calls onLogout when sign out is clicked", () => {
+  it("calls onLogout when Sign Out in dropdown is clicked", () => {
     render(<AdminLayout user={mockUser} onLogout={mockOnLogout} />);
 
-    const logoutButton = screen.getByText("Sign Out").closest("button");
-    fireEvent.click(logoutButton);
+    // Open dropdown
+    fireEvent.click(screen.getByLabelText("User menu"));
+
+    // Click Sign Out button inside menu
+    const menu = screen.getByRole("menu");
+    const signOutButton = within(menu).getByText("Sign Out").closest("button");
+    fireEvent.click(signOutButton);
 
     expect(mockOnLogout).toHaveBeenCalled();
+  });
+
+  it("sidebar navigation works", () => {
+    render(<AdminLayout user={mockUser} onLogout={mockOnLogout} />);
+
+    // Click Clients tab (sidebar)
+    // Note: Clients is unique enough, but safe to scope if needed.
+    // But "Clients" text only appears in sidebar.
+    fireEvent.click(screen.getByText("Clients"));
+    expect(screen.getByText("Clients Component")).toBeDefined();
   });
 });

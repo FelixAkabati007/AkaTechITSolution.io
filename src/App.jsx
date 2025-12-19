@@ -11,6 +11,7 @@ import { Contact } from "@components/sections/Contact";
 import { Footer } from "@components/layout/Footer";
 import { AuthModal } from "@components/ui/AuthModal";
 import { FloatingAssistant } from "@components/ui/FloatingAssistant";
+import { CookieConsent } from "@components/ui/CookieConsent";
 import AdinkraBackground from "@components/ui/AdinkraBackground";
 import { useTheme } from "./hooks/useTheme";
 
@@ -197,6 +198,7 @@ export default function App() {
             <FloatingAssistant />
           </Suspense>
         )}
+        <CookieConsent />
         <AuthModal
           isOpen={authModalOpen}
           onClose={() => setAuthModalOpen(false)}

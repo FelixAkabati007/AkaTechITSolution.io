@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://akatech.com/sitemap.xml

@@ -1,10 +1,13 @@
 import React, { useState, useEffect } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import { Icons } from "@components/ui/Icons";
 import { mockService } from "@lib/mockData";
 
 export const ClientSupport = ({ user }) => {
   const [tickets, setTickets] = useState([]);
+  const [selectedTicket, setSelectedTicket] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [replyMessage, setReplyMessage] = useState("");
   const [newTicket, setNewTicket] = useState({
     subject: "",
     priority: "Normal",
@@ -23,9 +26,42 @@ export const ClientSupport = ({ user }) => {
       status: "Open",
     };
     mockService.saveTicket(ticket);
-    setTickets(mockService.getTickets(user.id));
+    const updatedTickets = mockService.getTickets(user.id);
+    setTickets(updatedTickets);
     setIsModalOpen(false);
     setNewTicket({ subject: "", priority: "Normal", message: "" });
+    // Select the newly created ticket
+    if (updatedTickets.length > 0) {
+        setSelectedTicket(updatedTickets[0]);
+    }
+  };
+
+  const handleReply = (e) => {
+    e.preventDefault();
+    if (!replyMessage.trim()) return;
+
+    // In a real app, this would call an API
+    // For now, we'll update the local state and mock data if possible
+    const updatedTicket = {
+      ...selectedTicket,
+      replies: [
+        ...(selectedTicket.replies || []),
+        {
+          sender: "Client",
+          message: replyMessage,
+          date: new Date().toISOString().split("T")[0],
+        },
+      ],
+    };
+
+    // Update tickets list
+    const updatedTickets = tickets.map(t => t.id === updatedTicket.id ? updatedTicket : t);
+    setTickets(updatedTickets);
+    setSelectedTicket(updatedTicket);
+    setReplyMessage("");
+    
+    // Attempt to update mock service (if needed/supported)
+    // mockService.updateTicket(updatedTicket); // Assuming this exists or just relies on re-fetch
   };
 
   const getPriorityColor = (priority) => {
@@ -53,68 +89,157 @@ export const ClientSupport = ({ user }) => {
         </button>
       </div>
 
-      <div className="grid grid-cols-1 gap-4">
-        {tickets.length > 0 ? (
-          tickets.map((ticket) => (
-            <div
-              key={ticket.id}
-              className="bg-white dark:bg-akatech-card p-6 rounded-lg border border-gray-200 dark:border-white/10 hover:border-akatech-gold/30 transition-all cursor-pointer"
-            >
-              <div className="flex justify-between items-start mb-2">
-                <div>
-                  <h3 className="text-lg font-bold text-gray-900 dark:text-white">
-                    {ticket.subject}
-                  </h3>
-                  <p className="text-xs text-gray-500 font-mono">
-                    #{ticket.id} • Created on {ticket.createdAt}
-                  </p>
-                </div>
-                <div className="flex gap-2">
-                  <span
-                    className={`px-2 py-1 rounded text-[10px] uppercase font-bold ${getPriorityColor(
-                      ticket.priority
-                    )}`}
-                  >
-                    {ticket.priority}
-                  </span>
-                  <span className="px-2 py-1 rounded text-[10px] uppercase font-bold bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400">
-                    {ticket.status}
-                  </span>
-                </div>
-              </div>
-              <p className="text-gray-600 dark:text-gray-300 text-sm line-clamp-2">
-                {ticket.message}
-              </p>
-
-              {ticket.replies && ticket.replies.length > 0 && (
-                <div className="mt-4 pt-4 border-t border-gray-100 dark:border-white/5">
-                  <p className="text-xs text-gray-400 mb-2">Latest Reply:</p>
-                  <div className="flex gap-3">
-                    <div className="w-6 h-6 rounded-full bg-akatech-gold flex items-center justify-center text-white text-xs font-bold">
-                      S
-                    </div>
-                    <p className="text-sm text-gray-600 dark:text-gray-300 italic">
-                      "{ticket.replies[ticket.replies.length - 1].message}"
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Ticket List */}
+        <div className="lg:col-span-1 space-y-4">
+          {tickets.length > 0 ? (
+            tickets.map((ticket) => (
+              <motion.div
+                key={ticket.id}
+                layoutId={`ticket-${ticket.id}`}
+                onClick={() => setSelectedTicket(ticket)}
+                className={`p-6 rounded-lg border cursor-pointer transition-all ${
+                    selectedTicket?.id === ticket.id
+                    ? "bg-white dark:bg-akatech-card border-akatech-gold shadow-md"
+                    : "bg-white dark:bg-akatech-card border-gray-200 dark:border-white/10 hover:border-akatech-gold/50"
+                }`}
+              >
+                <div className="flex justify-between items-start mb-2">
+                  <div>
+                    <h3 className="text-sm font-bold text-gray-900 dark:text-white line-clamp-1">
+                      {ticket.subject}
+                    </h3>
+                    <p className="text-[10px] text-gray-500 font-mono">
+                      #{ticket.id} • {ticket.createdAt}
                     </p>
                   </div>
+                  <div className="flex gap-1 flex-col items-end">
+                    <span
+                      className={`px-1.5 py-0.5 rounded text-[9px] uppercase font-bold ${getPriorityColor(
+                        ticket.priority
+                      )}`}
+                    >
+                      {ticket.priority}
+                    </span>
+                    <span className="px-1.5 py-0.5 rounded text-[9px] uppercase font-bold bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400">
+                      {ticket.status}
+                    </span>
+                  </div>
                 </div>
-              )}
+                <p className="text-gray-600 dark:text-gray-300 text-xs line-clamp-2 mt-2">
+                  {ticket.message}
+                </p>
+              </motion.div>
+            ))
+          ) : (
+            <div className="text-center py-12 bg-white dark:bg-akatech-card rounded-lg border border-dashed border-gray-200 dark:border-white/10">
+              <Icons.LifeBuoy className="w-12 h-12 mx-auto mb-3 opacity-20 text-gray-500" />
+              <p className="text-gray-500 dark:text-gray-400 text-sm">
+                No tickets found.
+              </p>
             </div>
-          ))
-        ) : (
-          <div className="text-center py-12 bg-white dark:bg-akatech-card rounded-lg border border-dashed border-gray-200 dark:border-white/10">
-            <Icons.LifeBuoy className="w-12 h-12 mx-auto mb-3 opacity-20 text-gray-500" />
-            <p className="text-gray-500 dark:text-gray-400">
-              No support tickets found.
-            </p>
-            <button
-              onClick={() => setIsModalOpen(true)}
-              className="mt-4 text-akatech-gold hover:underline text-sm font-bold"
-            >
-              Create your first ticket
-            </button>
-          </div>
-        )}
+          )}
+        </div>
+
+        {/* Ticket Details */}
+        <div className="lg:col-span-2">
+           <AnimatePresence mode="wait">
+            {selectedTicket ? (
+                <motion.div
+                    key={selectedTicket.id}
+                    initial={{ opacity: 0, x: 20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: 20 }}
+                    className="bg-white dark:bg-akatech-card rounded-lg border border-gray-200 dark:border-white/10 p-6 flex flex-col h-full max-h-[600px]"
+                >
+                    <div className="border-b border-gray-200 dark:border-white/10 pb-4 mb-4 flex justify-between items-start">
+                        <div>
+                            <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-1">
+                                {selectedTicket.subject}
+                            </h2>
+                            <div className="flex gap-3 text-xs text-gray-500">
+                                <span className="font-mono">#{selectedTicket.id}</span>
+                                <span>•</span>
+                                <span>{selectedTicket.createdAt}</span>
+                            </div>
+                        </div>
+                        <div className="flex gap-2">
+                            <span className={`px-2 py-1 rounded text-xs font-bold uppercase ${getPriorityColor(selectedTicket.priority)}`}>
+                                {selectedTicket.priority}
+                            </span>
+                             <span className="px-2 py-1 rounded text-xs font-bold uppercase bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400">
+                                {selectedTicket.status}
+                            </span>
+                        </div>
+                    </div>
+
+                    <div className="flex-1 overflow-y-auto space-y-6 pr-2 mb-4">
+                        {/* Original Message */}
+                        <div className="flex gap-4">
+                            <div className="w-8 h-8 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center text-gray-600 dark:text-gray-300 font-bold text-xs shrink-0">
+                                YOU
+                            </div>
+                            <div className="flex-1">
+                                <div className="bg-gray-50 dark:bg-white/5 p-4 rounded-lg rounded-tl-none border border-gray-100 dark:border-white/5">
+                                    <p className="text-sm text-gray-800 dark:text-gray-200 whitespace-pre-wrap">
+                                        {selectedTicket.message}
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Replies */}
+                        {selectedTicket.replies && selectedTicket.replies.map((reply, index) => (
+                            <div key={index} className={`flex gap-4 ${reply.sender === 'Client' ? '' : 'flex-row-reverse'}`}>
+                                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white font-bold text-xs shrink-0 ${reply.sender === 'Client' ? 'bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300' : 'bg-akatech-gold'}`}>
+                                    {reply.sender === 'Client' ? 'YOU' : 'S'}
+                                </div>
+                                <div className="flex-1">
+                                     <div className={`p-4 rounded-lg border ${
+                                         reply.sender === 'Client' 
+                                         ? 'bg-gray-50 dark:bg-white/5 rounded-tl-none border-gray-100 dark:border-white/5' 
+                                         : 'bg-akatech-gold/10 rounded-tr-none border-akatech-gold/20'
+                                     }`}>
+                                        <p className="text-sm text-gray-800 dark:text-gray-200 whitespace-pre-wrap">
+                                            {reply.message}
+                                        </p>
+                                        <p className="text-[10px] text-gray-400 mt-2 text-right">
+                                            {reply.date}
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+
+                    {/* Reply Box */}
+                    <form onSubmit={handleReply} className="pt-4 border-t border-gray-200 dark:border-white/10">
+                        <div className="relative">
+                            <textarea
+                                value={replyMessage}
+                                onChange={(e) => setReplyMessage(e.target.value)}
+                                placeholder="Type your reply..."
+                                className="w-full pl-4 pr-12 py-3 rounded-lg border border-gray-300 dark:border-white/10 bg-transparent text-gray-900 dark:text-white focus:ring-2 focus:ring-akatech-gold outline-none resize-none text-sm"
+                                rows="2"
+                            />
+                            <button 
+                                type="submit"
+                                disabled={!replyMessage.trim()}
+                                className="absolute right-2 bottom-2 p-2 bg-akatech-gold text-white rounded-md hover:bg-akatech-goldDark transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                <Icons.Send className="w-4 h-4" />
+                            </button>
+                        </div>
+                    </form>
+                </motion.div>
+            ) : (
+                 <div className="h-full flex flex-col items-center justify-center text-gray-400 p-12 border-2 border-dashed border-gray-200 dark:border-white/10 rounded-lg min-h-[400px]">
+                    <Icons.MessageSquare className="w-12 h-12 mb-4 opacity-20" />
+                    <p>Select a ticket to view conversation</p>
+                </div>
+            )}
+           </AnimatePresence>
+        </div>
       </div>
 
       {/* New Ticket Modal */}
