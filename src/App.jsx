@@ -115,7 +115,7 @@ export default function App() {
       <Analytics />
       <ToastProvider>
         <div className="bg-white dark:bg-akatech-black text-gray-900 dark:text-white min-h-screen transition-colors duration-300">
-          <AdinkraBackground />
+          {/* <AdinkraBackground /> */}
           {view === "landing" && <ScrollProgress />}
           {view !== "dashboard" && (
             <Navbar
