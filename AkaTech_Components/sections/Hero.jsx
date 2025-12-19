@@ -43,12 +43,12 @@ export const Hero = () => {
               Est. 2023 | Ghana
             </span>
           </div>
-          <h1 className="text-4xl sm:text-5xl md:text-5xl lg:text-7xl font-serif font-bold leading-[1.1] mb-6 text-gray-900 dark:text-white transition-colors duration-300">
+          <h1 className="text-4xl sm:text-5xl md:text-5xl lg:text-7xl font-serif font-bold leading-[1.1] mb-6 text-black transition-colors duration-300">
             Digital <br />
             <span className="gold-text-clip">Excellence</span>
           </h1>
           <p className="text-gray-600 dark:text-gray-400 text-base sm:text-lg mb-10 max-w-lg font-light leading-relaxed border-l-2 border-akatech-gold/30 pl-6 transition-colors duration-300">
-            <strong className="font-bold text-gray-900 dark:text-white">
+            <strong className="font-bold text-black">
               AkaTech IT Solutions
             </strong>{" "}
             engineers premium software architectures, blending elegance with

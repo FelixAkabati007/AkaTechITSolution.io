@@ -116,6 +116,11 @@ export default function App() {
       <ToastProvider>
         <div className="bg-white dark:bg-akatech-black text-gray-900 dark:text-white min-h-screen transition-colors duration-300">
           {/* <AdinkraBackground /> */}
+          <img
+            src="/background-accent.jpg"
+            alt=""
+            className="fixed bottom-0 left-0 pointer-events-none w-[300px] md:w-[500px] opacity-100"
+          />
           {view === "landing" && <ScrollProgress />}
           {view !== "dashboard" && (
             <Navbar
