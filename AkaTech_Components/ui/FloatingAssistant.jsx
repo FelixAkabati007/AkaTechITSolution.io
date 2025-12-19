@@ -8,6 +8,33 @@ const Spline = React.lazy(() => import("@splinetool/react-spline"));
 export const FloatingAssistant = () => {
   const [isHovered, setIsHovered] = useState(false);
   const [hasError, setHasError] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+  const [isLoaded, setIsLoaded] = useState(false);
+
+  React.useEffect(() => {
+    const checkMobile = () => {
+      const userAgent =
+        navigator.userAgent || navigator.vendor || window.opera || "";
+      // Strict mobile check to avoid false positives on desktops
+      const isMobileUA =
+        /android|ipad|iphone|ipod|blackberry|iemobile|opera mini/i.test(
+          userAgent.toLowerCase()
+        );
+      const isSmallScreen = window.innerWidth < 768;
+
+      const newIsMobile = isMobileUA || isSmallScreen;
+      setIsMobile(newIsMobile);
+
+      // Reset error/loaded state when switching to desktop to allow retry
+      if (!newIsMobile) {
+        setHasError(false);
+      }
+    };
+
+    checkMobile();
+    window.addEventListener("resize", checkMobile);
+    return () => window.removeEventListener("resize", checkMobile);
+  }, []);
 
   const handleClick = () => {
     window.open(
@@ -64,24 +91,29 @@ export const FloatingAssistant = () => {
         <div className="absolute inset-0 bg-gradient-to-tr from-akatech-gold/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
 
         {/* Spline Viewer */}
-        {hasError ? (
+        {hasError || isMobile ? (
           <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-akatech-gold/10 to-akatech-gold/30 dark:from-akatech-gold/20 dark:to-akatech-gold/5 text-akatech-gold">
             <Icons.Bot size={32} />
           </div>
         ) : (
-          <Suspense
-            fallback={
-              <div className="w-full h-full flex items-center justify-center">
-                <div className="w-6 h-6 border-2 border-akatech-gold border-t-transparent rounded-full animate-spin"></div>
+          <div className="relative w-full h-full">
+            {/* Show Icon while loading for seamless transition */}
+            {!isLoaded && (
+              <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-akatech-gold/10 to-akatech-gold/30 dark:from-akatech-gold/20 dark:to-akatech-gold/5 text-akatech-gold transition-opacity duration-300">
+                <Icons.Bot size={32} />
               </div>
-            }
-          >
-            <Spline
-              scene="https://prod.spline.design/gg8wAlCUGNYmIMlR/scene.splinecode"
-              className="w-full h-full transform scale-125 translate-y-2"
-              onError={() => setHasError(true)}
-            />
-          </Suspense>
+            )}
+            <Suspense fallback={null}>
+              <Spline
+                scene="https://prod.spline.design/gg8wAlCUGNYmIMlR/scene.splinecode"
+                className={`w-full h-full transform scale-125 translate-y-2 transition-opacity duration-500 ${
+                  isLoaded ? "opacity-100" : "opacity-0"
+                }`}
+                onLoad={() => setIsLoaded(true)}
+                onError={() => setHasError(true)}
+              />
+            </Suspense>
+          </div>
         )}
 
         {/* Unread Badge */}
