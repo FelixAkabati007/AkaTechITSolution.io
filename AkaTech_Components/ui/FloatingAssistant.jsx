@@ -115,12 +115,6 @@ export const FloatingAssistant = () => {
             </Suspense>
           </div>
         )}
-
-        {/* Unread Badge */}
-        <span className="absolute top-0 right-0 flex h-4 w-4">
-          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-          <span className="relative inline-flex rounded-full h-4 w-4 bg-red-500 border-2 border-white dark:border-gray-900"></span>
-        </span>
       </motion.button>
     </div>
   );
