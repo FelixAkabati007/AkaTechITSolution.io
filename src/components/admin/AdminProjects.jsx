@@ -1,42 +1,70 @@
 import React, { useState, useEffect } from "react";
 import { Icons } from "@components/ui/Icons";
-import { mockService } from "@lib/mockData";
 import { AnimatePresence, motion } from "framer-motion";
 
 export const AdminProjects = () => {
   const [projects, setProjects] = useState([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [newProject, setNewProject] = useState({
-    title: "",
-    clientId: "",
-    status: "Initiation",
-    description: "",
-    startDate: new Date().toISOString().split("T")[0],
+    name: "",
+    email: "",
+    plan: "",
+    notes: "",
+    company: "",
   });
 
+  const fetchProjects = async () => {
+    const token = localStorage.getItem('adminToken');
+    if (!token) return;
+    try {
+      const res = await fetch('http://localhost:3001/api/projects', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setProjects(data);
+      }
+    } catch (e) { console.error(e); }
+  };
+
   useEffect(() => {
-    const data = mockService.getProjects();
-    setProjects(data);
+    fetchProjects();
+    const interval = setInterval(fetchProjects, 5000);
+    return () => clearInterval(interval);
   }, []);
 
-  const handleCreateProject = (e) => {
+  const handleCreateProject = async (e) => {
     e.preventDefault();
-    const project = {
-      ...newProject,
-      clientId: parseInt(newProject.clientId),
-    };
+    try {
+      const res = await fetch('http://localhost:3001/api/projects', {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(newProject)
+      });
+      
+      if (res.ok) {
+        setIsModalOpen(false);
+        setNewProject({ name: "", email: "", plan: "", notes: "", company: "" });
+        fetchProjects();
+      }
+    } catch (e) { console.error(e); }
+  };
 
-    mockService.saveProject(project);
-    setProjects(mockService.getProjects());
-
-    setIsModalOpen(false);
-    setNewProject({
-      title: "",
-      clientId: "",
-      status: "Initiation",
-      description: "",
-      startDate: new Date().toISOString().split("T")[0],
-    });
+  const updateStatus = async (id, status) => {
+    const token = localStorage.getItem('adminToken');
+    try {
+        await fetch(`http://localhost:3001/api/projects/${id}`, {
+            method: 'PATCH',
+            headers: { 
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ status })
+        });
+        fetchProjects();
+    } catch (e) { console.error(e); }
   };
 
   return (
@@ -57,10 +85,10 @@ export const AdminProjects = () => {
         <table className="w-full text-left border-collapse">
           <thead>
             <tr className="border-b border-gray-200 dark:border-white/10 text-xs uppercase tracking-widest text-gray-500">
-              <th className="py-4 font-medium">Project</th>
-              <th className="py-4 font-medium">Client ID</th>
+              <th className="py-4 font-medium">Project Plan</th>
+              <th className="py-4 font-medium">Client</th>
+              <th className="py-4 font-medium">Company</th>
               <th className="py-4 font-medium">Status</th>
-              <th className="py-4 font-medium">Progress</th>
               <th className="py-4 font-medium text-right">Actions</th>
             </tr>
           </thead>
@@ -71,34 +99,42 @@ export const AdminProjects = () => {
                 className="group hover:bg-gray-50 dark:hover:bg-white/5 transition-colors"
               >
                 <td className="py-4 font-medium text-gray-900 dark:text-white">
-                  {project.title}
+                  <div>
+                    {project.plan}
+                    <div className="text-xs text-gray-500 font-normal mt-0.5 max-w-xs truncate">{project.notes}</div>
+                  </div>
                 </td>
-                <td className="py-4 text-gray-500">{project.clientId}</td>
+                <td className="py-4 text-gray-500">
+                    <div className="text-sm font-medium text-gray-900 dark:text-white">{project.name}</div>
+                    <div className="text-xs">{project.email}</div>
+                </td>
+                <td className="py-4 text-gray-500">{project.company || '-'}</td>
                 <td className="py-4">
                   <span
                     className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                      project.status === "Completed"
+                      project.status === "completed"
                         ? "bg-green-100 text-green-800"
-                        : project.status === "In Progress"
-                        ? "bg-blue-100 text-blue-800"
-                        : "bg-gray-100 text-gray-800"
+                        : project.status === "pending"
+                        ? "bg-yellow-100 text-yellow-800"
+                        : "bg-blue-100 text-blue-800"
                     }`}
                   >
                     {project.status}
                   </span>
                 </td>
-                <td className="py-4 w-48">
-                  <div className="w-full bg-gray-200 dark:bg-white/10 rounded-full h-1.5">
-                    <div
-                      className="bg-akatech-gold h-1.5 rounded-full"
-                      style={{ width: `${project.progress}%` }}
-                    />
-                  </div>
-                </td>
                 <td className="py-4 text-right">
-                  <button className="text-gray-400 hover:text-akatech-gold transition-colors">
-                    <Icons.MoreHorizontal className="w-5 h-5" />
-                  </button>
+                  <div className="flex justify-end gap-2">
+                    {project.status !== 'completed' && (
+                        <button 
+                            onClick={() => updateStatus(project.id, 'completed')}
+                            className="text-green-600 hover:text-green-800" title="Mark Complete">
+                            <Icons.Check className="w-4 h-4" />
+                        </button>
+                    )}
+                    <button className="text-gray-400 hover:text-akatech-gold transition-colors">
+                        <Icons.MoreHorizontal className="w-5 h-5" />
+                    </button>
+                  </div>
                 </td>
               </tr>
             ))}
@@ -126,61 +162,61 @@ export const AdminProjects = () => {
 
               <form onSubmit={handleCreateProject} className="space-y-4">
                 <div>
-                  <label
-                    htmlFor="projectTitle"
-                    className="block text-xs uppercase tracking-widest text-gray-500 mb-1"
-                  >
-                    Project Title
+                  <label className="block text-xs uppercase tracking-widest text-gray-500 mb-1">
+                    Project Plan/Title
                   </label>
                   <input
-                    id="projectTitle"
                     type="text"
                     required
-                    value={newProject.title}
-                    onChange={(e) =>
-                      setNewProject({ ...newProject, title: e.target.value })
-                    }
+                    value={newProject.plan}
+                    onChange={(e) => setNewProject({ ...newProject, plan: e.target.value })}
+                    className="w-full bg-gray-50 dark:bg-black/20 border border-gray-200 dark:border-white/10 p-2 focus:outline-none focus:border-akatech-gold"
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                    <div>
+                    <label className="block text-xs uppercase tracking-widest text-gray-500 mb-1">
+                        Client Name
+                    </label>
+                    <input
+                        type="text"
+                        required
+                        value={newProject.name}
+                        onChange={(e) => setNewProject({ ...newProject, name: e.target.value })}
+                        className="w-full bg-gray-50 dark:bg-black/20 border border-gray-200 dark:border-white/10 p-2 focus:outline-none focus:border-akatech-gold"
+                    />
+                    </div>
+                    <div>
+                    <label className="block text-xs uppercase tracking-widest text-gray-500 mb-1">
+                        Client Email
+                    </label>
+                    <input
+                        type="email"
+                        required
+                        value={newProject.email}
+                        onChange={(e) => setNewProject({ ...newProject, email: e.target.value })}
+                        className="w-full bg-gray-50 dark:bg-black/20 border border-gray-200 dark:border-white/10 p-2 focus:outline-none focus:border-akatech-gold"
+                    />
+                    </div>
+                </div>
+                <div>
+                  <label className="block text-xs uppercase tracking-widest text-gray-500 mb-1">
+                    Company (Optional)
+                  </label>
+                  <input
+                    type="text"
+                    value={newProject.company}
+                    onChange={(e) => setNewProject({ ...newProject, company: e.target.value })}
                     className="w-full bg-gray-50 dark:bg-black/20 border border-gray-200 dark:border-white/10 p-2 focus:outline-none focus:border-akatech-gold"
                   />
                 </div>
                 <div>
-                  <label
-                    htmlFor="projectClient"
-                    className="block text-xs uppercase tracking-widest text-gray-500 mb-1"
-                  >
-                    Client (ID)
-                  </label>
-                  <select
-                    id="projectClient"
-                    required
-                    value={newProject.clientId}
-                    onChange={(e) =>
-                      setNewProject({ ...newProject, clientId: e.target.value })
-                    }
-                    className="w-full bg-gray-50 dark:bg-black/20 border border-gray-200 dark:border-white/10 p-2 focus:outline-none focus:border-akatech-gold"
-                  >
-                    <option value="">Select Client</option>
-                    <option value="1">Client One</option>
-                    <option value="2">Client Two</option>
-                  </select>
-                </div>
-                <div>
-                  <label
-                    htmlFor="projectDescription"
-                    className="block text-xs uppercase tracking-widest text-gray-500 mb-1"
-                  >
-                    Description
+                  <label className="block text-xs uppercase tracking-widest text-gray-500 mb-1">
+                    Notes/Description
                   </label>
                   <textarea
-                    id="projectDescription"
-                    required
-                    value={newProject.description}
-                    onChange={(e) =>
-                      setNewProject({
-                        ...newProject,
-                        description: e.target.value,
-                      })
-                    }
+                    value={newProject.notes}
+                    onChange={(e) => setNewProject({ ...newProject, notes: e.target.value })}
                     className="w-full bg-gray-50 dark:bg-black/20 border border-gray-200 dark:border-white/10 p-2 focus:outline-none focus:border-akatech-gold h-24"
                   />
                 </div>

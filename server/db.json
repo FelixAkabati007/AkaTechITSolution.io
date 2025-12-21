@@ -22,5 +22,31 @@
       "ip": "::1",
       "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36"
     }
-  ]
+  ],
+  "projects": [
+    {
+      "id": "98609067-9098-4b83-94e1-f5994641581e",
+      "name": "Mercy Akansweun",
+      "email": "AkansweunMercy10@gmail.com",
+      "company": "MercyPlug1",
+      "plan": "Startup Identity",
+      "notes": "VGVzdCBTdWJqZWN0",
+      "timestamp": "2025-12-19T23:30:54.725Z",
+      "status": "pending",
+      "ip": "::1"
+    },
+    {
+      "id": "9e95e975-b8cd-4cb1-92f6-4699feed0a3d",
+      "name": "project i",
+      "email": "felixakabti007@gmail.com",
+      "company": "XYZ",
+      "plan": "Enterprise Growth",
+      "notes": "VEVTVA==",
+      "timestamp": "2025-12-20T20:18:44.773Z",
+      "status": "completed",
+      "ip": "::1"
+    }
+  ],
+  "tickets": [],
+  "invoices": []
 }

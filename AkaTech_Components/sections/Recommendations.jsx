@@ -1,7 +1,28 @@
-import React from "react";
+import React, { useState } from "react";
 import { motion } from "framer-motion";
 import { Icons } from "@components/ui/Icons";
 import { RECOMMENDATIONS } from "@lib/data";
+
+const RecommendationAvatar = ({ rec }) => {
+  const [imgError, setImgError] = useState(false);
+
+  if (rec.image && !imgError) {
+    return (
+      <img
+        src={rec.image}
+        alt={rec.name}
+        className="w-12 h-12 rounded-full object-cover border-2 border-akatech-gold"
+        onError={() => setImgError(true)}
+      />
+    );
+  }
+
+  return (
+    <div className="w-12 h-12 rounded-full bg-gradient-to-br from-akatech-gold to-akatech-goldDark flex items-center justify-center text-white font-bold text-lg">
+      {rec.name.charAt(0)}
+    </div>
+  );
+};
 
 export const Recommendations = () => (
   <section className="py-16 md:py-24 bg-gray-50 dark:bg-akatech-dark border-t border-gray-200 dark:border-white/5 transition-colors duration-500">
@@ -30,17 +51,7 @@ export const Recommendations = () => (
               "{rec.text}"
             </p>
             <div className="flex items-center gap-4">
-              {rec.image ? (
-                <img
-                  src={rec.image}
-                  alt={rec.name}
-                  className="w-12 h-12 rounded-full object-cover border-2 border-akatech-gold"
-                />
-              ) : (
-                <div className="w-12 h-12 rounded-full bg-gradient-to-br from-akatech-gold to-akatech-goldDark flex items-center justify-center text-white font-bold text-lg">
-                  {rec.name.charAt(0)}
-                </div>
-              )}
+              <RecommendationAvatar rec={rec} />
               <div>
                 <h4 className="font-bold text-gray-900 dark:text-white text-sm">
                   {rec.name}

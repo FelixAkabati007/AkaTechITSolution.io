@@ -48,6 +48,7 @@ import {
   Upload,
   Send,
   Loader,
+  Folder,
 } from "lucide-react";
 
 export const Icons = {
@@ -101,6 +102,7 @@ export const Icons = {
   Upload,
   Send,
   Loader,
+  Folder,
   Google: (props) => (
     <svg
       {...props}

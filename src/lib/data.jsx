@@ -71,21 +71,20 @@ export const RECOMMENDATIONS = [
   {
     name: "Kweku Adjei",
     role: "CEO, Accra Logistics",
-    image:
-      "https://media.licdn.com/dms/image/v2/C5603AQGkLg1jWKQiCw/profile-displayphoto-shrink_800_800/profile-displayphoto-shrink_800_800/0/1565168666609?e=1767830400&v=beta&t=2R76LrRmr_6D_k7UFH0aACm_nDdbYsgBPIXSKMKCinA",
     text: "AkaTech IT Solutions revolutionized our supply chain management. Their local understanding combined with global standards created the perfect system for us.",
+    image: "/kweku-adjei.png",
   },
   {
     name: "Armand (Adamu) Forster",
     role: "CEO, KUMBISALY HERITAGE HOTEL AND RESTAURANT",
-    image:
-      "https://media.licdn.com/dms/image/v2/D4D03AQFM2Qh3hwiv2g/profile-displayphoto-shrink_800_800/profile-displayphoto-shrink_800_800/0/1673745362347?e=1767830400&v=beta&t=S3l2Y2dLdnRNhzr2-laRNRC9CXO8wYYi7DXTBw5S9B8",
     text: "Collaborating with the AkaTech has been smooth and efficient. The system they delivered is stable, well‑structured, and perfectly optimized to support our growing guest and restaurant operations.",
+    image: "/armand-forster.jpg",
   },
   {
-    name: "Ama Agyemang",
-    role: "Founder, Kumasi Styles",
+    name: "Tracy Agyemang",
+    role: "Owner, The Golden Spoon Bistro",
     text: "The e-commerce platform they built is not just beautiful, but incredibly functional. Our online sales have doubled since the launch.",
+    image: "/tracy-agyemang.png",
   },
 ];
 
@@ -287,36 +286,36 @@ export const PORTFOLIO_DATA = {
   ],
   projects: [
     {
-      title: "E-Commerce Platform",
+      title: "Hotel Management System",
       description:
-        "A comprehensive online shopping solution with integrated payment gateways (Paystack), user authentication, and an admin dashboard for inventory management.",
+        "A comprehensive system for managing bookings, guest records, and room inventory, featuring real-time availability tracking and integrated payment processing.",
       tags: ["React", "Node.js", "MongoDB", "Paystack"],
       image:
-        "https://images.unsplash.com/photo-1563013544-824ae1b704d3?auto=format&fit=crop&w=500&q=60",
+        "https://v0-felix-akabati-portfolio.vercel.app/images/hotel-management.jpg",
     },
     {
-      title: "Hospital Management System",
+      title: "School Website and Management System",
       description:
-        "A robust application for managing patient records, appointments, and staff scheduling, designed to streamline hospital operations.",
-      tags: ["Java", "Spring Boot", "MySQL", "Thymeleaf"],
+        "An integrated platform for schools featuring a public-facing website and a comprehensive management system for student records, grading, and attendance.",
+      tags: ["PHP", "Laravel", "MySQL", "Bootstrap"],
       image:
-        "https://images.unsplash.com/photo-1519494026892-80bbd2d6fd0d?auto=format&fit=crop&w=500&q=60",
+        "https://v0-felix-akabati-portfolio.vercel.app/images/school-website.jpg",
     },
     {
-      title: "POS System for Retail",
+      title: "Restaurant Management System and POS",
       description:
-        "Desktop-based Point of Sale software featuring barcode scanning, receipt printing, and sales reporting for retail businesses.",
-      tags: ["Python", "Tkinter", "SQLite"],
+        "Complete restaurant automation system with table reservations, kitchen display integration, inventory control, and robust sales reporting.",
+      tags: ["Electron", "React", "SQLite", "Thermal Printing"],
       image:
-        "https://images.unsplash.com/photo-1556742049-0cfed4f7a07d?auto=format&fit=crop&w=500&q=60",
+        "https://v0-felix-akabati-portfolio.vercel.app/images/restaurant-pos.jpg",
     },
     {
-      title: "Corporate Portfolio Website",
+      title: "Optical Service and Booking System",
       description:
-        "A modern, responsive portfolio website for a corporate client, featuring animations and a custom CMS.",
-      tags: ["Next.js", "Tailwind CSS", "Framer Motion"],
+        "A specialized booking and management system for optical clinics, facilitating appointment scheduling, patient records management, and prescription tracking.",
+      tags: ["React", "Node.js", "MongoDB", "Tailwind CSS"],
       image:
-        "https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&w=500&q=60",
+        "https://v0-felix-akabati-portfolio.vercel.app/images/optical-service.jpg",
     },
   ],
   experience: [
@@ -328,11 +327,11 @@ export const PORTFOLIO_DATA = {
         "Leading development teams, architecting scalable systems, and providing IT consultancy for enterprise clients.",
     },
     {
-      role: "Full Stack Developer",
       company: "Freelance",
-      period: "2023 - till Date",
+      role: "Full Stack Developer",
+      period: "2023 - PRESENT",
       description:
-        "Developed custom web and mobile applications for various international clients.",
+        "Building custom web applications for various clients using React, Node.js, and modern web technologies.",
     },
     {
       role: "Facilitator",
@@ -347,7 +346,12 @@ export const PORTFOLIO_DATA = {
       degree: "B.ED. Information Technology",
       school:
         "Akenten Appiah-Menka University of Skills Training and Entrepreneurial Development",
-      period: "2018 - 2022",
+      period: "PRESENT",
+    },
+    {
+      degree: "Diploma In Basic Education",
+      school: "St. John Bosco's College Of Education",
+      period: "2015 To 2017",
     },
   ],
 };

@@ -23,15 +23,30 @@ export const PlanCompletion = ({ plan, onBack, onHome }) => {
     return Object.keys(tempErrors).length === 0;
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (validate()) {
       setLoading(true);
-      setTimeout(() => {
-        setLoading(false);
+      try {
+        const response = await fetch("http://localhost:3001/api/projects", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            ...formData,
+            plan: plan.name,
+          }),
+        });
+
+        if (!response.ok) throw new Error("Failed to submit request");
+
         setStep(3);
         addToast(`Request for ${plan.name} received!`, "success");
-      }, 2000);
+      } catch (error) {
+        console.error(error);
+        addToast("Failed to submit request. Please try again.", "error");
+      } finally {
+        setLoading(false);
+      }
     }
   };
 

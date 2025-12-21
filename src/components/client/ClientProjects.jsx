@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Icons } from "@components/ui/Icons";
-import { mockService } from "@lib/mockData";
 
 export const ClientProjects = ({ user }) => {
   const [projects, setProjects] = useState([]);
@@ -11,9 +10,63 @@ export const ClientProjects = ({ user }) => {
   const [requestMessage, setRequestMessage] = useState("");
   const fileInputRef = useRef(null);
 
+  const fetchProjects = async () => {
+    if (!user?.email) return;
+    try {
+      const res = await fetch(
+        `http://localhost:3001/api/client/projects?email=${encodeURIComponent(
+          user.email
+        )}`
+      );
+      if (res.ok) {
+        const data = await res.json();
+        // Map API data to UI structure
+        const mappedProjects = data.map((p) => ({
+          id: p.id,
+          title: `${p.plan} Project`, // Use plan as title for now
+          description: p.notes || "No details provided.",
+          status:
+            p.status === "pending"
+              ? "Initiation"
+              : p.status === "in-progress"
+              ? "In Progress"
+              : p.status === "completed"
+              ? "Completed"
+              : p.status,
+          currentPhase:
+            p.status === "pending" ? "Request Review" : "Active Development",
+          phases: [
+            // Mock phases for now as backend doesn't support them yet
+            {
+              name: "Request Received",
+              status: "Completed",
+              date: new Date(p.timestamp).toLocaleDateString(),
+            },
+            {
+              name: "Review",
+              status: p.status === "pending" ? "In Progress" : "Completed",
+              date: "-",
+            },
+            {
+              name: "Development",
+              status: p.status === "in-progress" ? "In Progress" : "Pending",
+              date: "-",
+            },
+          ],
+          files: [], // Backend doesn't support files yet
+        }));
+        setProjects(mappedProjects);
+      }
+    } catch (err) {
+      console.error("Failed to fetch projects", err);
+    }
+  };
+
   useEffect(() => {
-    setProjects(mockService.getProjects(user.id));
-  }, [user.id]);
+    fetchProjects();
+    const interval = setInterval(fetchProjects, 10000);
+    return () => clearInterval(interval);
+  }, [user.email]);
 
   const filteredProjects = projects.filter(
     (project) =>
@@ -22,45 +75,39 @@ export const ClientProjects = ({ user }) => {
   );
 
   const handleFileUpload = (e) => {
+    // File upload simulation (Backend implementation pending)
     const file = e.target.files[0];
     if (file && selectedProject) {
-      // Simulate file upload
-      const newFile = {
-        name: file.name,
-        date: new Date().toLocaleDateString(),
-        size: `${(file.size / 1024).toFixed(1)} KB`,
-      };
-      
-      const updatedProject = {
-        ...selectedProject,
-        files: [...(selectedProject.files || []), newFile],
-      };
-
-      // Update local state and mock service (if applicable)
-      setSelectedProject(updatedProject);
-      setProjects(projects.map(p => p.id === updatedProject.id ? updatedProject : p));
-      
-      // Reset input
-      e.target.value = "";
+      alert("File upload backend integration coming soon!");
     }
   };
 
-  const handleRequestUpdate = (e) => {
+  const handleRequestUpdate = async (e) => {
     e.preventDefault();
     if (!requestMessage.trim()) return;
 
-    // Create a support ticket for the update request
-    mockService.createTicket({
-      clientId: user.id,
-      subject: `Update Request: ${selectedProject.title}`,
-      priority: "Normal",
-      message: requestMessage,
-      sender: "Client",
-    });
+    try {
+      const res = await fetch("http://localhost:3001/api/tickets", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          subject: `Update Request: ${selectedProject.title}`,
+          message: requestMessage,
+          priority: "medium",
+          userEmail: user.email,
+          userName: user.name,
+        }),
+      });
 
-    setIsRequestModalOpen(false);
-    setRequestMessage("");
-    alert("Update request sent successfully!");
+      if (res.ok) {
+        setIsRequestModalOpen(false);
+        setRequestMessage("");
+        alert("Update request sent successfully!");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Failed to send request.");
+    }
   };
 
   return (
@@ -210,7 +257,7 @@ export const ClientProjects = ({ user }) => {
                         onChange={handleFileUpload}
                       />
                     </div>
-                    
+
                     {selectedProject.files &&
                     selectedProject.files.length > 0 ? (
                       <ul className="space-y-3">
@@ -230,7 +277,10 @@ export const ClientProjects = ({ user }) => {
                                 </p>
                               </div>
                             </div>
-                            <button className="text-gray-400 hover:text-akatech-gold transition-colors p-1 rounded hover:bg-gray-100 dark:hover:bg-white/10" title="Download">
+                            <button
+                              className="text-gray-400 hover:text-akatech-gold transition-colors p-1 rounded hover:bg-gray-100 dark:hover:bg-white/10"
+                              title="Download"
+                            >
                               <Icons.Download className="w-4 h-4" />
                             </button>
                           </li>

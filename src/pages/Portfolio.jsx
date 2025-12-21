@@ -1,9 +1,11 @@
-import React from "react";
+import React, { useState } from "react";
 import { motion } from "framer-motion";
 import { Icons } from "@components/ui/Icons";
 import { PORTFOLIO_DATA } from "../lib/data";
 
 export const Portfolio = () => {
+  const [locked, setLocked] = useState({});
+
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-akatech-dark pt-28 pb-12 transition-colors duration-500">
       <div className="container mx-auto px-4 max-w-6xl">
@@ -129,8 +131,21 @@ export const Portfolio = () => {
                       </span>
                     ))}
                   </div>
-                  <button className="text-akatech-gold text-xs font-bold uppercase tracking-widest hover:text-white transition-colors flex items-center gap-2">
-                    View Project <span className="text-lg">→</span>
+                  <button
+                    onClick={() =>
+                      setLocked((prev) => ({ ...prev, [idx]: !prev[idx] }))
+                    }
+                    className="text-akatech-gold text-xs font-bold uppercase tracking-widest hover:text-white transition-colors flex items-center gap-2"
+                  >
+                    {locked[idx] ? (
+                      <>
+                        Locked <Icons.Lock className="w-4 h-4" />
+                      </>
+                    ) : (
+                      <>
+                        View Project <span className="text-lg">→</span>
+                      </>
+                    )}
                   </button>
                 </div>
               </motion.div>

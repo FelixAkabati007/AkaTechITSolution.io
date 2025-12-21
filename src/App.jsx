@@ -81,7 +81,7 @@ export default function App() {
     const mockUser = {
       name: email.split("@")[0],
       email: email,
-      avatarUrl: "https://via.placeholder.com/40",
+      avatarUrl: null,
       isAdmin: isAdmin,
     };
     setUser(mockUser);

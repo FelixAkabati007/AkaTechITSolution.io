@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Icons } from "@components/ui/Icons";
 import { Avatar } from "@components/ui/Avatar";
@@ -11,6 +11,20 @@ import { ClientProfile } from "./ClientProfile";
 export const ClientLayout = ({ user, onLogout }) => {
   const [activeTab, setActiveTab] = useState("dashboard");
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const handleResize = () => {
+      const mobile = window.innerWidth < 768;
+      setIsMobile(mobile);
+      if (mobile) setIsSidebarOpen(false);
+      else setIsSidebarOpen(true);
+    };
+
+    handleResize(); // Initial check
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
 
   const menuItems = [
     { id: "dashboard", label: "Dashboard", icon: Icons.LayoutDashboard },
@@ -39,11 +53,24 @@ export const ClientLayout = ({ user, onLogout }) => {
 
   return (
     <div className="min-h-screen bg-gray-100 dark:bg-akatech-dark flex transition-colors duration-500">
+      {/* Mobile Backdrop */}
+      {isMobile && isSidebarOpen && (
+        <div
+          className="fixed inset-0 bg-black/50 z-30 backdrop-blur-sm md:hidden"
+          onClick={() => setIsSidebarOpen(false)}
+        />
+      )}
+
       {/* Sidebar */}
       <motion.aside
-        initial={{ width: isSidebarOpen ? 260 : 80 }}
-        animate={{ width: isSidebarOpen ? 260 : 80 }}
-        className="bg-white dark:bg-akatech-card border-r border-gray-200 dark:border-white/10 flex flex-col fixed h-full z-20 shadow-lg md:relative"
+        initial={false}
+        animate={
+          isMobile
+            ? { x: isSidebarOpen ? 0 : "-100%", width: 260 }
+            : { width: isSidebarOpen ? 260 : 80, x: 0 }
+        }
+        transition={{ duration: 0.3, bounce: 0 }}
+        className="bg-white dark:bg-akatech-card border-r border-gray-200 dark:border-white/10 flex flex-col fixed inset-y-0 left-0 h-full z-40 shadow-xl md:relative md:shadow-lg md:translate-x-0"
       >
         {/* Header */}
         <div className="h-20 flex items-center justify-between px-6 border-b border-gray-200 dark:border-white/10">
@@ -148,9 +175,17 @@ export const ClientLayout = ({ user, onLogout }) => {
       {/* Main Content */}
       <main className="flex-1 overflow-y-auto h-screen bg-gray-100 dark:bg-[#0a0a0a] relative">
         <header className="h-20 bg-white/80 dark:bg-akatech-card/80 backdrop-blur-md sticky top-0 z-10 border-b border-gray-200 dark:border-white/10 px-8 flex items-center justify-between">
-          <h2 className="text-2xl font-serif text-gray-900 dark:text-white">
-            {menuItems.find((i) => i.id === activeTab)?.label}
-          </h2>
+          <div className="flex items-center gap-4">
+            <button
+              onClick={() => setIsSidebarOpen(true)}
+              className="md:hidden p-2 -ml-2 text-gray-500 hover:text-akatech-gold transition-colors"
+            >
+              <Icons.Menu className="w-6 h-6" />
+            </button>
+            <h2 className="text-2xl font-serif text-gray-900 dark:text-white">
+              {menuItems.find((i) => i.id === activeTab)?.label}
+            </h2>
+          </div>
           <div className="flex items-center gap-4">
             <button className="p-2 text-gray-500 hover:text-akatech-gold transition-colors relative">
               <Icons.Bell className="w-5 h-5" />

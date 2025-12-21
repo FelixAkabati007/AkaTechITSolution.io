@@ -18,6 +18,27 @@ export const AdminLayout = ({ user, onLogout }) => {
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
 
+  React.useEffect(() => {
+    const loginAdmin = async () => {
+      try {
+        const res = await fetch("http://localhost:3001/api/login", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ username: "admin", password: "admin123" }),
+        });
+        if (res.ok) {
+          const data = await res.json();
+          localStorage.setItem("adminToken", data.token);
+        }
+      } catch (e) {
+        console.error("Admin auto-login failed", e);
+      }
+    };
+
+    // Always refresh token on mount for this demo
+    loginAdmin();
+  }, []);
+
   const menuItems = [
     { id: "dashboard", label: "Dashboard", icon: Icons.LayoutDashboard },
     { id: "messages", label: "Messages", icon: Icons.MessageSquare },

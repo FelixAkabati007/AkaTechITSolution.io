@@ -11,21 +11,39 @@ export const AdminDashboard = () => {
   });
 
   useEffect(() => {
-    const users = mockService.getUsers();
-    const projects = mockService.getProjects();
-    const invoices = mockService.getInvoices();
-    const tickets = mockService.getTickets();
+    const fetchData = async () => {
+      const token = localStorage.getItem("adminToken");
+      // if (!token) return; // Allow rendering with 0 if no token
+      try {
+        const headers = token ? { Authorization: `Bearer ${token}` } : {};
 
-    const revenue = invoices
-      .filter((i) => i.status === "Paid")
-      .reduce((acc, curr) => acc + curr.amount, 0);
+        // Fetch projects and tickets
+        const [projectsRes, ticketsRes] = await Promise.all([
+          fetch("http://localhost:3001/api/projects", { headers }),
+          fetch("http://localhost:3001/api/tickets", { headers }),
+        ]);
 
-    setStats({
-      totalUsers: users.length,
-      activeProjects: projects.filter((p) => p.status === "In Progress").length,
-      totalRevenue: revenue,
-      pendingTickets: tickets.filter((t) => t.status !== "Resolved").length,
-    });
+        const projects = projectsRes.ok ? await projectsRes.json() : [];
+        const tickets = ticketsRes.ok ? await ticketsRes.json() : [];
+
+        setStats({
+          totalUsers: 0, // Users API not yet implemented
+          activeProjects: projects.filter(
+            (p) => p.status !== "completed" && p.status !== "rejected"
+          ).length,
+          totalRevenue: 0, // Invoices API not yet implemented
+          pendingTickets: tickets.filter(
+            (t) => t.status !== "resolved" && t.status !== "closed"
+          ).length,
+        });
+      } catch (e) {
+        console.error("Dashboard fetch failed", e);
+      }
+    };
+
+    fetchData();
+    const interval = setInterval(fetchData, 10000);
+    return () => clearInterval(interval);
   }, []);
 
   const statCards = [
