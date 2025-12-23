@@ -10,9 +10,45 @@ const fs = require("fs");
 const path = require("path");
 const xss = require("xss");
 const crypto = require("crypto");
+const nodemailer = require("nodemailer");
+const imaps = require("imap-simple");
+const { simpleParser } = require("mailparser");
+
+// --- Load .env manually ---
+const envPath = path.join(__dirname, "../.env");
+if (fs.existsSync(envPath)) {
+  const envConfig = fs.readFileSync(envPath, "utf8");
+  envConfig.split("\n").forEach((line) => {
+    const [key, value] = line.split("=");
+    if (key && value) {
+      process.env[key.trim()] = value.trim();
+    }
+  });
+}
 
 const app = express();
 const server = http.createServer(app);
+
+// --- Email Transporter ---
+// Support for both Basic Auth and OAuth 2.0
+const authConfig = process.env.OAUTH_CLIENT_ID
+  ? {
+      type: "OAuth2",
+      user: process.env.EMAIL_USER,
+      clientId: process.env.OAUTH_CLIENT_ID,
+      clientSecret: process.env.OAUTH_CLIENT_SECRET,
+      refreshToken: process.env.OAUTH_REFRESH_TOKEN,
+    }
+  : {
+      user: process.env.EMAIL_USER,
+      pass: process.env.EMAIL_PASS,
+    };
+
+const transporter = nodemailer.createTransport({
+  service: "hotmail",
+  auth: authConfig,
+});
+
 const io = new Server(server, {
   cors: {
     origin: "*", // In production, restrict this
@@ -20,7 +56,7 @@ const io = new Server(server, {
   },
 });
 
-const PORT = 3001;
+const PORT = process.env.PORT || 3001;
 const SECRET_KEY = "akatech-super-secret-key-change-in-prod";
 const DB_FILE = path.join(__dirname, "db.json");
 
@@ -92,13 +128,29 @@ const authenticateToken = (req, res, next) => {
   const authHeader = req.headers["authorization"];
   const token = authHeader && authHeader.split(" ")[1];
 
-  if (token == null) return res.sendStatus(401);
+  if (token == null)
+    return res
+      .status(401)
+      .json({ error: "Unauthorized", message: "No token provided" });
 
   jwt.verify(token, SECRET_KEY, (err, user) => {
-    if (err) return res.sendStatus(403);
+    if (err)
+      return res
+        .status(403)
+        .json({ error: "Forbidden", message: "Invalid or expired token" });
     req.user = user;
     next();
   });
+};
+
+const authorizeAdmin = (req, res, next) => {
+  if (req.user && req.user.role === "admin") {
+    next();
+  } else {
+    res
+      .status(403)
+      .json({ error: "Forbidden", message: "Insufficient permissions" });
+  }
 };
 
 // --- Routes ---
@@ -299,6 +351,39 @@ app.patch("/api/client/tickets/:id", (req, res) => {
   res.json(updatedTicket);
 });
 
+// 6. Get Clients (for Direct Messaging)
+app.get("/api/clients", authenticateToken, (req, res) => {
+  const db = getDb();
+  const clients = new Map();
+
+  // Add from subscriptions
+  db.subscriptions.forEach((sub) => {
+    if (sub.userEmail) {
+      clients.set(sub.userEmail, {
+        name: sub.userName,
+        email: sub.userEmail,
+        source: "Subscription",
+        status: sub.status,
+      });
+    }
+  });
+
+  // Add from messages
+  db.messages.forEach((msg) => {
+    if (msg.email) {
+      if (!clients.has(msg.email)) {
+        clients.set(msg.email, {
+          name: msg.name,
+          email: msg.email,
+          source: "Inquiry",
+        });
+      }
+    }
+  });
+
+  res.json(Array.from(clients.values()));
+});
+
 // 2. Admin Login (Demo)
 app.post("/api/login", (req, res) => {
   const { username, password } = req.body;
@@ -329,7 +414,7 @@ app.get("/api/projects", authenticateToken, (req, res) => {
   res.json(projects);
 });
 
-app.get("/api/tickets", authenticateToken, (req, res) => {
+app.get("/api/tickets", authenticateToken, authorizeAdmin, (req, res) => {
   const db = getDb();
   const tickets = db.tickets.map((t) => ({
     ...t,
@@ -506,6 +591,80 @@ app.patch("/api/:resource/:id", authenticateToken, (req, res) => {
 
   io.emit(`update_${resource}`, updatedItem); // Notify clients
   res.json(updatedItem);
+});
+
+// 8. Delete Resource
+app.delete("/api/:resource/:id", authenticateToken, (req, res) => {
+  const { resource, id } = req.params;
+  const db = getDb();
+
+  if (!db[resource])
+    return res.status(404).json({ error: "Resource type not found" });
+
+  const initialLength = db[resource].length;
+  db[resource] = db[resource].filter((item) => item.id !== id);
+
+  if (db[resource].length === initialLength) {
+    return res.status(404).json({ error: "Item not found" });
+  }
+
+  saveDb(db);
+  io.emit(`delete_${resource}`, id); // Notify clients
+  res.json({ message: "Deleted successfully" });
+});
+
+// 7. Send Direct Message (Outlook Integration)
+app.post("/api/send-email", authenticateToken, (req, res) => {
+  const { to, subject, message } = req.body;
+
+  if (!to || !subject || !message) {
+    return res
+      .status(400)
+      .json({ error: "To, Subject, and Message are required." });
+  }
+
+  const mailOptions = {
+    from: process.env.EMAIL_USER,
+    to: to,
+    subject: subject,
+    text: message,
+  };
+
+  transporter.sendMail(mailOptions, (error, info) => {
+    if (error) {
+      console.error("Email send error:", error);
+      return res.status(500).json({ error: "Failed to send email." });
+    }
+
+    // Save to DB as sent message
+    const db = getDb();
+    const sentMsg = {
+      id: crypto.randomUUID(),
+      name: "Admin",
+      email: to, // The recipient
+      subject: subject,
+      content: encrypt(message),
+      timestamp: new Date().toISOString(),
+      status: "sent", // distinct from unread/read
+      direction: "outbound",
+    };
+    db.messages.push(sentMsg);
+    saveDb(db);
+
+    io.emit("new_message", { ...sentMsg, content: message });
+
+    logAudit("SEND_EMAIL", req.user.username, { to, subject });
+
+    res.json({ message: "Email sent successfully", info });
+  });
+});
+
+// --- Global Error Handler ---
+app.use((err, req, res, next) => {
+  console.error(err.stack);
+  res
+    .status(500)
+    .json({ error: "Internal Server Error", details: err.message });
 });
 
 // --- Socket.io ---

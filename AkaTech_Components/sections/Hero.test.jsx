@@ -6,6 +6,7 @@ import { Hero } from "./Hero";
 vi.mock("framer-motion", () => ({
   motion: {
     div: ({ children, ...props }) => <div {...props}>{children}</div>,
+    button: ({ children, ...props }) => <button {...props}>{children}</button>,
   },
   AnimatePresence: ({ children }) => <>{children}</>,
 }));

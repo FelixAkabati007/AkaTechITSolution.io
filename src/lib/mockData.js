@@ -291,6 +291,9 @@ class MockService {
 
   _save(key, data) {
     localStorage.setItem(key, JSON.stringify(data));
+    if (key === "subscriptions") {
+      window.dispatchEvent(new Event("subscriptionUpdated"));
+    }
   }
 
   getUsers() {

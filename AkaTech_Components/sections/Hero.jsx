@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { Icons } from "@components/ui/Icons";
+import { Button } from "@components/ui/Button";
 import { WEBSITE_SAMPLES } from "@lib/data";
 
 /**
@@ -55,12 +56,26 @@ export const Hero = () => {
             high-performance computing for visionary businesses.
           </p>
           <div className="flex flex-wrap gap-4">
-            <a href="#pricing" className="btn-primary">
+            <Button
+              variant="primary"
+              size="lg"
+              onClick={() => {
+                const el = document.getElementById("pricing");
+                if (el) el.scrollIntoView({ behavior: "smooth" });
+              }}
+            >
               View Packages
-            </a>
-            <a href="#contact" className="btn-outline">
+            </Button>
+            <Button
+              variant="outline"
+              size="lg"
+              onClick={() => {
+                const el = document.getElementById("contact");
+                if (el) el.scrollIntoView({ behavior: "smooth" });
+              }}
+            >
               Our Work
-            </a>
+            </Button>
           </div>
         </motion.div>
 

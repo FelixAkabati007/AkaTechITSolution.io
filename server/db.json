@@ -7,7 +7,7 @@
       "subject": "TEST ",
       "content": "VEVTVCBNRVNTQUdF",
       "timestamp": "2025-12-19T19:34:40.487Z",
-      "status": "unread",
+      "status": "read",
       "ip": "::1",
       "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Trae/1.104.3 Chrome/138.0.7204.251 Electron/37.6.1 Safari/537.36"
     },
@@ -18,7 +18,7 @@
       "subject": "Test ",
       "content": "dGVzdCBtZXNzYWdl",
       "timestamp": "2025-12-19T19:34:55.153Z",
-      "status": "unread",
+      "status": "read",
       "ip": "::1",
       "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36"
     },
@@ -29,7 +29,7 @@
       "subject": "A text",
       "content": "dGVzdCAx",
       "timestamp": "2025-12-22T18:53:46.783Z",
-      "status": "unread",
+      "status": "read",
       "ip": "::1",
       "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36"
     }
@@ -150,6 +150,42 @@
       "endDate": "2027-06-21T23:43:32.233Z",
       "paymentHistory": [],
       "timestamp": "2025-12-21T23:43:32.233Z"
+    },
+    {
+      "id": "4254176b-62c7-48e5-99fb-5ae0b30e8884",
+      "userId": "ce9310b7-56fc-44f3-bf29-f764e8445d52",
+      "userName": "Test User",
+      "userEmail": "test@example.com",
+      "plan": "Premium",
+      "status": "active",
+      "startDate": "2025-12-23T13:51:11.002Z",
+      "endDate": "2027-06-23T13:51:10.956Z",
+      "paymentHistory": [],
+      "timestamp": "2025-12-23T13:51:10.956Z"
+    },
+    {
+      "id": "75084f0d-a7e0-4296-91dd-9d1d5067e421",
+      "userId": "18b224d3-4afa-46d3-9c84-493ccdd2326c",
+      "userName": "Test User",
+      "userEmail": "test@example.com",
+      "plan": "Premium",
+      "status": "active",
+      "startDate": "2025-12-23T13:55:00.680Z",
+      "endDate": "2027-06-23T13:55:00.653Z",
+      "paymentHistory": [],
+      "timestamp": "2025-12-23T13:55:00.654Z"
+    },
+    {
+      "id": "859d99ae-1a24-4411-8613-5cbb70789813",
+      "userId": "test-user",
+      "userName": "Test User",
+      "userEmail": "test-1766498846344@example.com",
+      "plan": "Pro",
+      "status": "active",
+      "startDate": "2025-12-23T14:07:26.401Z",
+      "endDate": "2026-12-23T14:07:26.359Z",
+      "paymentHistory": [],
+      "timestamp": "2025-12-23T14:07:26.359Z"
     }
   ],
   "auditLogs": [
@@ -180,6 +216,90 @@
         "subId": "68d3dfb3-908d-49d5-9087-79707ad863d6"
       },
       "timestamp": "2025-12-21T23:43:32.284Z"
+    },
+    {
+      "id": "2239dc47-0e85-42df-bb35-7e88ac7b1220",
+      "action": "DELETE_MESSAGES",
+      "performedBy": "admin",
+      "details": {
+        "id": "f0da13d6-b471-4428-b368-f66ade8faf3e"
+      },
+      "timestamp": "2025-12-23T04:26:40.898Z"
+    },
+    {
+      "id": "cd53a5c5-cf03-4b02-acf0-85f4c5f2ac5c",
+      "action": "CREATE_SUBSCRIPTION",
+      "performedBy": "admin",
+      "details": {
+        "subId": "4254176b-62c7-48e5-99fb-5ae0b30e8884",
+        "plan": "Premium"
+      },
+      "timestamp": "2025-12-23T13:51:10.958Z"
+    },
+    {
+      "id": "679b8cdd-0394-464c-85ac-630176c42238",
+      "action": "SUBSCRIPTION_APPROVE",
+      "performedBy": "admin",
+      "details": {
+        "subId": "4254176b-62c7-48e5-99fb-5ae0b30e8884"
+      },
+      "timestamp": "2025-12-23T13:51:11.004Z"
+    },
+    {
+      "id": "4a13f4c1-7bbd-4744-87f3-28c6998210b2",
+      "action": "SUBSCRIPTION_EXTEND",
+      "performedBy": "admin",
+      "details": {
+        "subId": "4254176b-62c7-48e5-99fb-5ae0b30e8884"
+      },
+      "timestamp": "2025-12-23T13:51:11.063Z"
+    },
+    {
+      "id": "b11bc952-f3f6-4d65-8b63-7061194fad6b",
+      "action": "CREATE_SUBSCRIPTION",
+      "performedBy": "admin",
+      "details": {
+        "subId": "75084f0d-a7e0-4296-91dd-9d1d5067e421",
+        "plan": "Premium"
+      },
+      "timestamp": "2025-12-23T13:55:00.655Z"
+    },
+    {
+      "id": "12a406a1-cada-483d-9a60-de799649d604",
+      "action": "SUBSCRIPTION_APPROVE",
+      "performedBy": "admin",
+      "details": {
+        "subId": "75084f0d-a7e0-4296-91dd-9d1d5067e421"
+      },
+      "timestamp": "2025-12-23T13:55:00.681Z"
+    },
+    {
+      "id": "e99303e8-7040-40fd-a240-162af874a741",
+      "action": "SUBSCRIPTION_EXTEND",
+      "performedBy": "admin",
+      "details": {
+        "subId": "75084f0d-a7e0-4296-91dd-9d1d5067e421"
+      },
+      "timestamp": "2025-12-23T13:55:00.696Z"
+    },
+    {
+      "id": "42e91742-4b7e-4728-8f24-d3252136ab1a",
+      "action": "CREATE_SUBSCRIPTION",
+      "performedBy": "admin",
+      "details": {
+        "subId": "859d99ae-1a24-4411-8613-5cbb70789813",
+        "plan": "Pro"
+      },
+      "timestamp": "2025-12-23T14:07:26.363Z"
+    },
+    {
+      "id": "7eed200a-696c-45c7-81e8-7b2e6866ca97",
+      "action": "SUBSCRIPTION_APPROVE",
+      "performedBy": "admin",
+      "details": {
+        "subId": "859d99ae-1a24-4411-8613-5cbb70789813"
+      },
+      "timestamp": "2025-12-23T14:07:26.404Z"
     }
   ]
 }

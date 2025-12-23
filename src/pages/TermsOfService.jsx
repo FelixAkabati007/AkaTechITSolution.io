@@ -153,7 +153,7 @@ export const TermsOfService = ({ onHome }) => {
             <p>
               If you have any questions regarding these Terms of Service,
               please contact us at:{" "}
-              <a href="mailto:info@Akatech.com">info@Akatech.com</a>
+              <a href="mailto:Akatechitsolutions@outlook.com">Akatechitsolutions@outlook.com</a>
             </p>
           </section>
         </motion.article>

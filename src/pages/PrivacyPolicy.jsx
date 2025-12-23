@@ -113,7 +113,7 @@ export const PrivacyPolicy = ({ onHome }) => {
               If you have any questions about this privacy policy or our
               privacy practices, please contact us at:{" "}
               <span className="text-akatech-gold">
-                privacy@Akatech.com
+                Akatechitsolutions@outlook.com
               </span>
               .
             </p>

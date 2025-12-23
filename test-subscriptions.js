@@ -8,7 +8,8 @@ let token = "";
 let subId = "";
 
 const log = (msg, type = "info") => {
-  console.log(`[${type.toUpperCase()}] ${msg}`);
+  const timestamp = new Date().toISOString();
+  console.log(`[${timestamp}] [${type.toUpperCase()}] ${msg}`);
 };
 
 const runTests = async () => {

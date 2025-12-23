@@ -17,6 +17,12 @@ export const Footer = ({ onNavigate }) => (
           <br />
           from Ghana to the world.
         </p>
+        <a
+          href="mailto:Akatechitsolutions@outlook.com"
+          className="block mt-4 text-xs text-gray-600 hover:text-akatech-gold transition"
+        >
+          Akatechitsolutions@outlook.com
+        </a>
         <p className="text-gray-500 dark:text-gray-700 text-[10px] mt-4 uppercase tracking-widest transition-colors duration-500">
           © 2023 Mr. Felix Akabati. All Rights Reserved.
         </p>
@@ -159,10 +165,10 @@ export const Footer = ({ onNavigate }) => (
               href="#"
               onClick={(e) => {
                 e.preventDefault();
-                onNavigate("portfolio");
+                onNavigate("about");
               }}
             >
-              Portfolio
+              About
             </a>
           </li>
           <li className="hover:text-akatech-gold cursor-pointer transition">

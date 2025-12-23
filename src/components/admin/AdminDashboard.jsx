@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { Icons } from "@components/ui/Icons";
+import { Card } from "@components/ui/Card";
 import { mockService } from "@lib/mockData";
 
 export const AdminDashboard = () => {
@@ -99,9 +100,11 @@ export const AdminDashboard = () => {
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {statCards.map((stat, i) => (
-          <div
+          <Card
             key={i}
-            className="bg-white dark:bg-akatech-card p-6 rounded-lg border border-gray-200 dark:border-white/10 shadow-sm"
+            hoverEffect={true}
+            glass={false}
+            className="bg-white dark:bg-akatech-card"
           >
             <div className="flex justify-between items-start mb-4">
               <span className="text-gray-500 text-xs uppercase tracking-widest">
@@ -123,13 +126,13 @@ export const AdminDashboard = () => {
                 {stat.change}
               </span>
             </div>
-          </div>
+          </Card>
         ))}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         {/* Recent Activity */}
-        <div className="bg-white dark:bg-akatech-card p-6 rounded-lg border border-gray-200 dark:border-white/10">
+        <Card glass={false} className="bg-white dark:bg-akatech-card">
           <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-6">
             Recent Activity
           </h3>
@@ -148,10 +151,10 @@ export const AdminDashboard = () => {
               </div>
             ))}
           </div>
-        </div>
+        </Card>
 
         {/* System Health */}
-        <div className="bg-white dark:bg-akatech-card p-6 rounded-lg border border-gray-200 dark:border-white/10">
+        <Card glass={false} className="bg-white dark:bg-akatech-card">
           <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-6">
             System Health
           </h3>
@@ -190,7 +193,7 @@ export const AdminDashboard = () => {
               </div>
             </div>
           </div>
-        </div>
+        </Card>
       </div>
     </div>
   );

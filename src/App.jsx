@@ -20,8 +20,8 @@ import { Analytics } from "@vercel/analytics/react";
 const Dashboard = lazy(() =>
   import("./pages/Dashboard").then((module) => ({ default: module.Dashboard }))
 );
-const Portfolio = lazy(() =>
-  import("./pages/Portfolio").then((module) => ({ default: module.Portfolio }))
+const About = lazy(() =>
+  import("./pages/About").then((module) => ({ default: module.About }))
 );
 const ComponentsPage = lazy(() =>
   import("./pages/ComponentsPage").then((module) => ({
@@ -162,7 +162,7 @@ export default function App() {
               />
             )}
 
-            {view === "portfolio" && <Portfolio />}
+            {view === "about" && <About />}
             {view === "components" && <ComponentsPage />}
             {view === "docs" && <DocsPage />}
             {view === "themes" && (

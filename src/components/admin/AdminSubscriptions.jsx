@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { Icons } from "@components/ui/Icons";
-import { mockService } from "../../lib/mockData";
 import { PRICING_PACKAGES } from "../../lib/data";
+
+const API_URL = "http://localhost:3001/api";
 
 export const AdminSubscriptions = () => {
   const [subscriptions, setSubscriptions] = useState([]);
@@ -11,25 +12,26 @@ export const AdminSubscriptions = () => {
   const [total, setTotal] = useState(0);
   const [statusFilter, setStatusFilter] = useState("");
   const [notification, setNotification] = useState(null);
+  const [token, setToken] = useState(localStorage.getItem("adminToken"));
 
   const fetchSubscriptions = async () => {
     setLoading(true);
     try {
-      // Simulate network delay
-      await new Promise((resolve) => setTimeout(resolve, 500));
+      const currentToken = localStorage.getItem("adminToken");
+      if (!currentToken) return;
 
-      let data = mockService.getSubscriptions();
+      const res = await fetch(
+        `${API_URL}/subscriptions?page=${page}&limit=${limit}&status=${statusFilter}`,
+        {
+          headers: { Authorization: `Bearer ${currentToken}` },
+        }
+      );
 
-      if (statusFilter) {
-        data = data.filter((sub) => sub.status === statusFilter);
-      }
+      if (!res.ok) throw new Error("Failed to fetch");
 
-      setTotal(data.length);
-
-      // Pagination
-      const start = (page - 1) * limit;
-      const end = start + limit;
-      setSubscriptions(data.slice(start, end));
+      const data = await res.json();
+      setSubscriptions(data.data);
+      setTotal(data.total);
     } catch (err) {
       console.error("Failed to fetch subscriptions", err);
       showNotification("Failed to fetch subscriptions", "error");
@@ -41,40 +43,23 @@ export const AdminSubscriptions = () => {
   useEffect(() => {
     fetchSubscriptions();
 
-    // Real-time sync listeners
-    const handleStorageChange = (e) => {
-      if (e.key === "subscriptions") {
-        fetchSubscriptions();
-      }
-    };
-
-    const handleCustomEvent = () => {
-      fetchSubscriptions();
-    };
-
-    window.addEventListener("storage", handleStorageChange);
-    window.addEventListener("subscriptionUpdated", handleCustomEvent);
-
-    return () => {
-      window.removeEventListener("storage", handleStorageChange);
-      window.removeEventListener("subscriptionUpdated", handleCustomEvent);
-    };
+    // Listen for updates from other tabs/windows if needed,
+    // but main sync comes from API fetch on mount/update.
   }, [page, statusFilter]);
 
   const handleAction = async (id, action, details = {}) => {
     try {
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 300));
+      const currentToken = localStorage.getItem("adminToken");
+      const res = await fetch(`${API_URL}/subscriptions/${id}/action`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${currentToken}`,
+        },
+        body: JSON.stringify({ action, details }),
+      });
 
-      if (action === "approve") {
-        mockService.updateSubscriptionStatus(id, "active");
-      } else if (action === "reject") {
-        mockService.updateSubscriptionStatus(id, "cancelled");
-      } else if (action === "cancel") {
-        mockService.updateSubscriptionStatus(id, "cancelled");
-      } else if (action === "extend") {
-        mockService.extendSubscription(id, details.months || 1);
-      }
+      if (!res.ok) throw new Error("Action failed");
 
       const actionPastTense =
         {

@@ -240,7 +240,7 @@ export const PORTFOLIO_DATA = {
   profile: {
     name: "Felix Akabati",
     title: "Software Engineer | System Architect | IT Consultant",
-    bio: "Experienced Full Stack Developer with a demonstrated history of working in the computer software industry. Skilled in PHP, Java, Python, JavaScript, and React. Strong engineering professional with a Bachelor of Science focused in Computer Science.",
+    bio: "Experienced Full Stack Developer with a demonstrated history of working in the computer software industry. Skilled in PHP, Java, Python, JavaScript, and React. Strong engineering professional with a Bachelor Of Education focused in Information Technology.",
     image: "20221005_210833.jpg",
     location: "Kumasi, Ashanti Region, Ghana",
     email: "felixakabati007@gmail.com",
@@ -343,15 +343,15 @@ export const PORTFOLIO_DATA = {
   ],
   education: [
     {
-      degree: "B.ED. Information Technology",
+      degree: "B.Ed. Information Technology",
       school:
         "Akenten Appiah-Menka University of Skills Training and Entrepreneurial Development",
-      period: "PRESENT",
+      period: "2023",
     },
     {
-      degree: "Diploma In Basic Education",
-      school: "St. John Bosco's College Of Education",
-      period: "2015 To 2017",
+      degree: "Diploma in Basic Education",
+      school: "St. John Bosco's College of Education",
+      period: "2015 - 2017",
     },
   ],
 };

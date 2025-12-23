@@ -3,6 +3,8 @@ import { AnimatePresence, motion } from "framer-motion";
 import { Icons } from "@components/ui/Icons";
 import { Logo } from "@components/ui/Logo";
 import { Avatar } from "@components/ui/Avatar";
+import { SearchButton } from "@components/ui/SearchButton";
+import { Button } from "@components/ui/Button";
 import PropTypes from "prop-types";
 
 /**
@@ -37,8 +39,8 @@ export const Navbar = ({
   }, []);
 
   const handleNav = (target) => {
-    if (target === "portfolio") {
-      onViewChange("portfolio");
+    if (target === "about") {
+      onViewChange("about");
       window.scrollTo(0, 0);
     } else {
       onViewChange("landing");
@@ -102,23 +104,30 @@ export const Navbar = ({
           </div>
         </div>
 
-        <div className="hidden md:flex items-center space-x-4 lg:space-x-8">
-          {["Services", "Portfolio", "Pricing"].map((item) => (
+        <div className="hidden md:flex items-center space-x-2 lg:space-x-6">
+          <SearchButton
+            onSearch={(q) => console.log("Searching:", q)}
+            className="mr-2"
+          />
+
+          {["Services", "About", "Pricing"].map((item) => (
             <button
               key={item}
               onClick={() => handleNav(item.toLowerCase())}
-              className="text-xs font-bold uppercase tracking-widest text-gray-500 hover:text-akatech-gold dark:text-gray-400 dark:hover:text-akatech-gold transition-colors duration-300 relative group"
+              className="text-xs font-bold uppercase tracking-widest text-gray-500 hover:text-akatech-gold dark:text-gray-400 dark:hover:text-akatech-gold transition-colors duration-300 relative group px-2 py-1"
             >
               {item}
-              <span className="absolute -bottom-2 left-0 w-0 h-0.5 bg-akatech-gold transition-all duration-300 group-hover:w-full"></span>
+              <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-akatech-gold transition-all duration-300 group-hover:w-full"></span>
             </button>
           ))}
           <button
             onClick={() => handleNav("contact")}
-            className="text-xs font-bold uppercase tracking-widest text-gray-500 hover:text-akatech-gold dark:text-gray-400 dark:hover:text-akatech-gold transition-colors duration-300"
+            className="text-xs font-bold uppercase tracking-widest text-gray-500 hover:text-akatech-gold dark:text-gray-400 dark:hover:text-akatech-gold transition-colors duration-300 px-2 py-1"
           >
             Contact
           </button>
+
+          <div className="w-px h-6 bg-gray-300 dark:bg-white/10 mx-2" />
 
           <button
             onClick={cycleTheme}
@@ -127,13 +136,10 @@ export const Navbar = ({
             aria-label={`Current theme is ${getThemeLabel()}. Click to switch theme.`}
           >
             {getThemeIcon()}
-            <span className="absolute top-full mt-2 left-1/2 -translate-x-1/2 bg-black text-white text-[10px] px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
-              {getThemeLabel()}
-            </span>
           </button>
 
           {isLoggedIn ? (
-            <div className="flex items-center gap-3 ml-4 pl-6 border-l border-gray-300 dark:border-white/10">
+            <div className="flex items-center gap-3 ml-2">
               <button
                 onClick={toggleAuth}
                 className="flex items-center gap-3 group"
@@ -144,16 +150,19 @@ export const Navbar = ({
               </button>
             </div>
           ) : (
-            <button
+            <Button
+              variant="outline"
+              size="sm"
               onClick={toggleAuth}
-              className="ml-4 bg-transparent border border-akatech-gold text-akatech-gold px-6 py-2 text-xs font-bold uppercase tracking-widest hover:bg-akatech-gold hover:text-black hover:shadow-[0_0_20px_rgba(197,160,89,0.5)] hover:scale-105 active:scale-95 transition-all duration-300"
+              className="ml-2 !py-2 !px-4"
             >
               Client Login
-            </button>
+            </Button>
           )}
         </div>
 
-        <div className="md:hidden flex items-center gap-4">
+        <div className="md:hidden flex items-center gap-2">
+          <SearchButton onSearch={(q) => console.log("Searching:", q)} />
           <button
             onClick={cycleTheme}
             className="text-gray-600 dark:text-akatech-gold p-3 min-w-[48px] min-h-[48px] flex items-center justify-center"
@@ -187,10 +196,10 @@ export const Navbar = ({
                 Services
               </button>
               <button
-                onClick={() => handleNav("portfolio")}
+                onClick={() => handleNav("about")}
                 className="text-left text-gray-600 dark:text-gray-300 text-sm uppercase tracking-widest py-4 border-b border-gray-100 dark:border-white/5 active:bg-gray-50 dark:active:bg-white/5 transition-colors"
               >
-                Portfolio
+                About
               </button>
               <button
                 onClick={() => handleNav("pricing")}

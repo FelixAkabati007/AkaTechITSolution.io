@@ -120,7 +120,7 @@ export const Contact = () => {
               <h4 className="text-gray-900 dark:text-white font-bold mb-1 uppercase tracking-wider text-xs transition-colors duration-500">
                 Email
               </h4>
-              <p className="text-gray-500">info@Akatech.com</p>
+              <p className="text-gray-500">Akatechitsolutions@outlook.com</p>
             </div>
           </div>
         </div>

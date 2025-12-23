@@ -1,10 +1,48 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { Icons } from "@components/ui/Icons";
 import { PORTFOLIO_DATA } from "../lib/data";
+import { mockService } from "../lib/mockData";
 
-export const Portfolio = () => {
+export const About = () => {
   const [locked, setLocked] = useState({});
+  const [hasActiveSubscription, setHasActiveSubscription] = useState(false);
+  const [syncError, setSyncError] = useState(null);
+
+  useEffect(() => {
+    const checkSubscriptionStatus = () => {
+      try {
+        const subscriptions = mockService.getSubscriptions();
+        const active = subscriptions.some((sub) => sub.status === "active");
+        setHasActiveSubscription(active);
+        setSyncError(null);
+      } catch (error) {
+        console.error("Failed to sync subscription status:", error);
+        setSyncError("Sync failed");
+      }
+    };
+
+    // Initial check
+    checkSubscriptionStatus();
+
+    // Listen for updates
+    const handleSubscriptionUpdate = () => {
+      checkSubscriptionStatus();
+    };
+
+    window.addEventListener("subscriptionUpdated", handleSubscriptionUpdate);
+
+    // Also listen for storage changes in case of multi-tab
+    window.addEventListener("storage", handleSubscriptionUpdate);
+
+    return () => {
+      window.removeEventListener(
+        "subscriptionUpdated",
+        handleSubscriptionUpdate
+      );
+      window.removeEventListener("storage", handleSubscriptionUpdate);
+    };
+  }, []);
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-akatech-dark pt-28 pb-12 transition-colors duration-500">
@@ -197,7 +235,9 @@ export const Portfolio = () => {
                     {edu.school}
                   </div>
                   <p className="text-gray-500 dark:text-gray-500 text-xs font-mono">
-                    {edu.period}
+                    {edu.period === "2023" && hasActiveSubscription
+                      ? "Present"
+                      : edu.period}
                   </p>
                 </div>
               ))}
