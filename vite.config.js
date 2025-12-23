@@ -25,7 +25,8 @@ export default defineConfig({
       output: {
         manualChunks: {
           vendor: ["react", "react-dom", "framer-motion"],
-          ui: ["lucide-react"],
+          ui: ["lucide-react", "clsx", "tailwind-merge"],
+          spline: ["@splinetool/react-spline", "@splinetool/runtime"],
         },
       },
     },
