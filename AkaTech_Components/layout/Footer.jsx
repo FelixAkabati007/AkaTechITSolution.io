@@ -24,7 +24,7 @@ export const Footer = ({ onNavigate }) => (
           Akatechitsolutions@outlook.com
         </a>
         <p className="text-gray-500 dark:text-gray-700 text-[10px] mt-4 uppercase tracking-widest transition-colors duration-500">
-          © 2023 Mr. Felix Akabati. All Rights Reserved.
+          © 2023 AkaTech IT Solutions. All Rights Reserved.
         </p>
       </div>
       <div>

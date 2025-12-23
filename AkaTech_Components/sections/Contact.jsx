@@ -103,7 +103,7 @@ export const Contact = () => {
               <h4 className="text-gray-900 dark:text-white font-bold mb-1 uppercase tracking-wider text-xs transition-colors duration-500">
                 Headquarters
               </h4>
-              <p className="text-gray-500">Ejisu, Ashanti Region, Ghana</p>
+              <p className="text-gray-500">Kumasi - Ashanti Region, Ghana</p>
             </div>
             <div>
               <h4 className="text-gray-900 dark:text-white font-bold mb-1 uppercase tracking-wider text-xs transition-colors duration-500">

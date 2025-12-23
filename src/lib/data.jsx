@@ -238,13 +238,13 @@ export const WEBSITE_SAMPLES = [
 
 export const PORTFOLIO_DATA = {
   profile: {
-    name: "Felix Akabati",
-    title: "Software Engineer | System Architect | IT Consultant",
-    bio: "Experienced Full Stack Developer with a demonstrated history of working in the computer software industry. Skilled in PHP, Java, Python, JavaScript, and React. Strong engineering professional with a Bachelor Of Education focused in Information Technology.",
+    name: "AkaTech IT Solutions",
+    title: "AkaTech IT Solutions is a Ghana-based technology company delivering smart, secure, and scalable IT solutions for businesses, schools, and organizations. We specialize in custom software development, systems architecture, IT consulting, and EdTech innovation that drive digital growth and transformation.",
+    bio: "Led by Felix Akabati, an experienced Software Engineer and System Architect, we combine technical expertise with strategic insight to empower communities and enterprises with future-ready technology.",
     image: "20221005_210833.jpg",
-    location: "Kumasi, Ashanti Region, Ghana",
-    email: "felixakabati007@gmail.com",
-    phone: "+233 24 402 7477",
+    location: "Kumasi - Ashanti Region, Ghana",
+    email: "AkaTechiTSolutions@outlook.com",
+    phone: "+233 24 402 7477 or +233 20 282 4663",
   },
   skills: [
     {
