@@ -1,4 +1,4 @@
-import React, { useState, useEffect, Suspense } from "react";
+import React, { useState, useEffect, Suspense, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Icons } from "@components/ui/Icons";
 import { Avatar } from "@components/ui/Avatar";
@@ -12,6 +12,87 @@ export const ClientLayout = ({ user, onLogout }) => {
   const [activeTab, setActiveTab] = useState("dashboard");
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isMobile, setIsMobile] = useState(false);
+
+  // Notification State
+  const [showNotifications, setShowNotifications] = useState(false);
+  const [isLoadingNotifications, setIsLoadingNotifications] = useState(true);
+  const [notificationError, setNotificationError] = useState(null);
+  const notificationRef = useRef(null);
+  const [notifications, setNotifications] = useState([]);
+
+  useEffect(() => {
+    const fetchNotifications = async () => {
+      try {
+        // Simulate API call
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+        setNotifications([
+          {
+            id: 1,
+            title: "Welcome to AkaTech",
+            message: "Thanks for joining our platform!",
+            time: "2m ago",
+            read: false,
+            type: "info",
+          },
+          {
+            id: 2,
+            title: "Project Update",
+            message:
+              "Your project 'E-commerce Platform' status changed to In Progress.",
+            time: "1h ago",
+            read: false,
+            type: "success",
+          },
+          {
+            id: 3,
+            title: "System Maintenance",
+            message: "Scheduled maintenance on Saturday at 2 AM EST.",
+            time: "1d ago",
+            read: true,
+            type: "warning",
+          },
+        ]);
+      } catch (err) {
+        setNotificationError("Failed to load notifications");
+      } finally {
+        setIsLoadingNotifications(false);
+      }
+    };
+
+    fetchNotifications();
+  }, []);
+
+  const unreadCount = notifications.filter((n) => !n.read).length;
+
+  const markAsRead = (id) => {
+    setNotifications((prev) =>
+      prev.map((n) => (n.id === id ? { ...n, read: true } : n))
+    );
+  };
+
+  const markAllAsRead = () => {
+    setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+  };
+
+  // Close notifications on click outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (
+        notificationRef.current &&
+        !notificationRef.current.contains(event.target)
+      ) {
+        setShowNotifications(false);
+      }
+    };
+
+    if (showNotifications) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [showNotifications]);
 
   useEffect(() => {
     const handleResize = () => {
@@ -186,11 +267,123 @@ export const ClientLayout = ({ user, onLogout }) => {
               {menuItems.find((i) => i.id === activeTab)?.label}
             </h2>
           </div>
-          <div className="flex items-center gap-4">
-            <button className="p-2 text-gray-500 hover:text-akatech-gold transition-colors relative">
+          <div className="flex items-center gap-4" ref={notificationRef}>
+            <button
+              onClick={() => setShowNotifications(!showNotifications)}
+              className={`p-2 transition-colors relative rounded-full hover:bg-gray-100 dark:hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-akatech-gold ${
+                showNotifications
+                  ? "text-akatech-gold bg-gray-100 dark:bg-white/10"
+                  : "text-gray-500 hover:text-akatech-gold"
+              }`}
+              aria-label={`Notifications ${
+                unreadCount > 0 ? `(${unreadCount} unread)` : ""
+              }`}
+              aria-expanded={showNotifications}
+              aria-haspopup="true"
+            >
               <Icons.Bell className="w-5 h-5" />
-              <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full border border-white dark:border-akatech-card"></span>
+              {unreadCount > 0 && (
+                <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full border border-white dark:border-akatech-card animate-pulse"></span>
+              )}
             </button>
+
+            {/* Notification Dropdown */}
+            <AnimatePresence>
+              {showNotifications && (
+                <motion.div
+                  initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                  transition={{ duration: 0.2 }}
+                  className="absolute top-full right-4 mt-2 w-80 sm:w-96 bg-white dark:bg-akatech-card rounded-lg shadow-xl border border-gray-200 dark:border-white/10 overflow-hidden z-50 origin-top-right"
+                >
+                  <div className="p-4 border-b border-gray-200 dark:border-white/10 flex justify-between items-center bg-gray-50/50 dark:bg-white/5">
+                    <h3 className="font-bold text-gray-900 dark:text-white">
+                      Notifications
+                    </h3>
+                    {unreadCount > 0 && (
+                      <button
+                        onClick={markAllAsRead}
+                        className="text-xs text-akatech-gold hover:text-akatech-goldDark font-bold uppercase tracking-wider"
+                      >
+                        Mark all read
+                      </button>
+                    )}
+                  </div>
+
+                  <div className="max-h-[400px] overflow-y-auto">
+                    {isLoadingNotifications ? (
+                      <div className="p-8 flex flex-col items-center justify-center text-gray-500 dark:text-gray-400">
+                        <Icons.Loader className="w-8 h-8 animate-spin mb-2 text-akatech-gold" />
+                        <p className="text-sm">Loading notifications...</p>
+                      </div>
+                    ) : notificationError ? (
+                      <div className="p-8 flex flex-col items-center justify-center text-red-500 text-center">
+                        <Icons.AlertCircle className="w-8 h-8 mb-2" />
+                        <p className="text-sm font-bold">Error</p>
+                        <p className="text-xs">{notificationError}</p>
+                      </div>
+                    ) : notifications.length > 0 ? (
+                      <div className="divide-y divide-gray-100 dark:divide-white/5">
+                        {notifications.map((notification) => (
+                          <div
+                            key={notification.id}
+                            onClick={() => markAsRead(notification.id)}
+                            className={`p-4 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors cursor-pointer relative ${
+                              !notification.read
+                                ? "bg-blue-50/30 dark:bg-blue-900/10"
+                                : ""
+                            }`}
+                          >
+                            {!notification.read && (
+                              <span className="absolute left-0 top-0 bottom-0 w-1 bg-akatech-gold"></span>
+                            )}
+                            <div className="flex gap-3">
+                              <div
+                                className={`mt-1 w-2 h-2 rounded-full shrink-0 ${
+                                  notification.type === "success"
+                                    ? "bg-green-500"
+                                    : notification.type === "warning"
+                                    ? "bg-yellow-500"
+                                    : "bg-blue-500"
+                                }`}
+                              />
+                              <div className="flex-1 min-w-0">
+                                <h4
+                                  className={`text-sm font-bold mb-0.5 ${
+                                    !notification.read
+                                      ? "text-gray-900 dark:text-white"
+                                      : "text-gray-600 dark:text-gray-400"
+                                  }`}
+                                >
+                                  {notification.title}
+                                </h4>
+                                <p className="text-xs text-gray-500 dark:text-gray-400 leading-relaxed mb-1">
+                                  {notification.message}
+                                </p>
+                                <span className="text-[10px] text-gray-400 font-mono">
+                                  {notification.time}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="p-8 text-center text-gray-500 dark:text-gray-400">
+                        <p className="text-sm">No notifications</p>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="p-3 border-t border-gray-200 dark:border-white/10 bg-gray-50/50 dark:bg-white/5 text-center">
+                    <button className="text-xs text-gray-500 hover:text-gray-900 dark:hover:text-white font-medium transition-colors">
+                      View All Notifications
+                    </button>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
         </header>
 

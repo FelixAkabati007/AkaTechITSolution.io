@@ -152,7 +152,10 @@ export const ClientBilling = ({ user }) => {
           </div>
           <button
             onClick={() => setIsModalOpen(true)}
-            className="px-4 py-2 bg-akatech-gold text-white text-sm font-bold uppercase tracking-widest hover:bg-akatech-goldDark transition-colors"
+            className="px-4 py-2 bg-akatech-gold text-white text-sm font-bold uppercase tracking-widest hover:bg-akatech-goldDark transition-colors focus:outline-none focus:ring-2 focus:ring-akatech-gold focus:ring-offset-2"
+            aria-haspopup="dialog"
+            aria-expanded={isModalOpen}
+            aria-controls="request-invoice-modal"
           >
             Request Invoice
           </button>
@@ -160,9 +163,18 @@ export const ClientBilling = ({ user }) => {
       </div>
 
       {isModalOpen && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+        <div
+          id="request-invoice-modal"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="modal-title"
+          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+        >
           <div className="bg-white dark:bg-akatech-card p-6 rounded-lg w-full max-w-md">
-            <h3 className="text-xl font-bold mb-4 text-gray-900 dark:text-white">
+            <h3
+              id="modal-title"
+              className="text-xl font-bold mb-4 text-gray-900 dark:text-white"
+            >
               Request Invoice
             </h3>
             <form onSubmit={handleRequestInvoice} className="space-y-4">
@@ -174,7 +186,7 @@ export const ClientBilling = ({ user }) => {
                   type="text"
                   value={requestData.subject}
                   disabled
-                  className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-white/10 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white"
+                  className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-white/10 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white cursor-not-allowed"
                 />
               </div>
               <div>
@@ -195,15 +207,24 @@ export const ClientBilling = ({ user }) => {
                 <button
                   type="button"
                   onClick={() => setIsModalOpen(false)}
-                  className="px-4 py-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                  disabled={isSubmittingRequest}
+                  className="px-4 py-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 disabled:opacity-50"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 bg-akatech-gold text-white rounded-lg font-bold hover:bg-akatech-goldDark transition-colors"
+                  disabled={isSubmittingRequest}
+                  className="px-4 py-2 bg-akatech-gold text-white rounded-lg font-bold hover:bg-akatech-goldDark transition-colors disabled:opacity-70 flex items-center gap-2"
                 >
-                  Submit Request
+                  {isSubmittingRequest ? (
+                    <>
+                      <Icons.Loader className="w-4 h-4 animate-spin" />
+                      Sending...
+                    </>
+                  ) : (
+                    "Submit Request"
+                  )}
                 </button>
               </div>
             </form>

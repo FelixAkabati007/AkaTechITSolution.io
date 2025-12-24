@@ -1,11 +1,14 @@
 import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Icons } from "@components/ui/Icons";
+import { useToast } from "@components/ui/ToastProvider";
 
 export const ClientSupport = ({ user }) => {
+  const { addToast } = useToast();
   const [tickets, setTickets] = useState([]);
   const [selectedTicket, setSelectedTicket] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [replyMessage, setReplyMessage] = useState("");
   const [newTicket, setNewTicket] = useState({
     subject: "",
@@ -379,9 +382,17 @@ export const ClientSupport = ({ user }) => {
                 </button>
                 <button
                   type="submit"
-                  className="px-6 py-2 bg-akatech-gold text-white rounded-lg font-bold hover:bg-akatech-goldDark transition-colors"
+                  disabled={isSubmitting}
+                  className="px-6 py-2 bg-akatech-gold text-white rounded-lg font-bold hover:bg-akatech-goldDark transition-colors disabled:opacity-70 disabled:cursor-not-allowed flex items-center gap-2"
                 >
-                  Submit Ticket
+                  {isSubmitting ? (
+                    <>
+                      <Icons.Loader className="w-4 h-4 animate-spin" />
+                      Submitting...
+                    </>
+                  ) : (
+                    "Submit Ticket"
+                  )}
                 </button>
               </div>
             </form>

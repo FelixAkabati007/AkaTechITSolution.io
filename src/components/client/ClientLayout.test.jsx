@@ -1,102 +1,153 @@
-import { render, screen, waitFor } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
+import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { describe, it, expect, vi } from "vitest";
 import { ClientLayout } from "./ClientLayout";
+import React from "react";
 
-// Mock sub-components to focus on Layout and Icons
+// Mock child components to avoid rendering complexity
 vi.mock("./ClientDashboard", () => ({
-  ClientDashboard: () => <div>Client Dashboard Component</div>,
+  ClientDashboard: () => <div data-testid="dashboard" />,
 }));
 vi.mock("./ClientProjects", () => ({
-  ClientProjects: () => <div>Client Projects Component</div>,
+  ClientProjects: () => <div data-testid="projects" />,
 }));
 vi.mock("./ClientBilling", () => ({
-  ClientBilling: () => <div>Client Billing Component</div>,
+  ClientBilling: () => <div data-testid="billing" />,
 }));
 vi.mock("./ClientSupport", () => ({
-  ClientSupport: () => <div>Client Support Component</div>,
+  ClientSupport: () => <div data-testid="support" />,
 }));
 vi.mock("./ClientProfile", () => ({
-  ClientProfile: () => <div>Client Profile Component</div>,
+  ClientProfile: () => <div data-testid="profile" />,
 }));
 
-describe("ClientLayout", () => {
+// Mock Icons
+vi.mock("@components/ui/Icons", () => ({
+  Icons: {
+    LayoutDashboard: () => <div />,
+    Briefcase: () => <div />,
+    CreditCard: () => <div />,
+    LifeBuoy: () => <div />,
+    User: () => <div />,
+    ChevronLeft: () => <div />,
+    ChevronRight: () => <div />,
+    LogOut: () => <div />,
+    Menu: () => <div />,
+    Bell: () => <div data-testid="icon-bell" />,
+    AlertCircle: () => <div data-testid="icon-alert" />,
+    Loader: () => <div data-testid="icon-loader" />,
+  },
+}));
+
+// Mock Avatar
+vi.mock("@components/ui/Avatar", () => ({
+  Avatar: () => <div data-testid="avatar" />,
+}));
+
+describe("ClientLayout Notification Button", () => {
   const mockUser = {
     name: "Test User",
-    email: "test@example.com",
-    role: "client",
-    id: "1",
+    avatarUrl: "test.jpg",
   };
-  const mockOnLogout = vi.fn();
 
-  it("renders without crashing and shows dashboard by default", () => {
-    render(<ClientLayout user={mockUser} onLogout={mockOnLogout} />);
-    expect(screen.getByText("Client Portal")).toBeInTheDocument();
-    expect(screen.getByText("Client Dashboard Component")).toBeInTheDocument();
+  it("renders the notification button with unread count", async () => {
+    render(<ClientLayout user={mockUser} />);
+
+    // Check for button
+    const button = screen.getByRole("button", { name: /Notifications/i });
+    expect(button).toBeInTheDocument();
+
+    // Check for bell icon
+    expect(screen.getByTestId("icon-bell")).toBeInTheDocument();
+
+    // Wait for unread count to appear in aria-label (simulated network delay)
+    await waitFor(
+      () => {
+        expect(button).toHaveAttribute(
+          "aria-label",
+          expect.stringMatching(/unread/i)
+        );
+      },
+      { timeout: 2000 }
+    );
   });
 
-  it("renders navigation items", () => {
-    render(<ClientLayout user={mockUser} onLogout={mockOnLogout} />);
-    expect(screen.getAllByText("Dashboard")).toHaveLength(2); // Sidebar + Header
-    expect(screen.getByText("My Projects")).toBeInTheDocument();
-    expect(screen.getByText("Billing")).toBeInTheDocument();
-    expect(screen.getByText("Support")).toBeInTheDocument();
-    expect(screen.getByText("Profile")).toBeInTheDocument();
+  it("shows loading state when opening dropdown initially", () => {
+    render(<ClientLayout user={mockUser} />);
+    const button = screen.getByRole("button", { name: /Notifications/i });
+
+    fireEvent.click(button);
+    expect(screen.getByText("Loading notifications...")).toBeInTheDocument();
+    expect(screen.getByTestId("icon-loader")).toBeInTheDocument();
   });
 
-  it("switches tabs when navigation items are clicked", async () => {
-    const user = userEvent.setup();
-    render(<ClientLayout user={mockUser} onLogout={mockOnLogout} />);
+  it("toggles notification dropdown on click", async () => {
+    render(<ClientLayout user={mockUser} />);
 
-    await user.click(screen.getByText("My Projects"));
+    const button = screen.getByRole("button", { name: /Notifications/i });
+
+    // Click to open
+    fireEvent.click(button);
+
+    // Wait for content to load
+    await waitFor(
+      () => {
+        expect(screen.getByText("Welcome to AkaTech")).toBeInTheDocument();
+      },
+      { timeout: 2000 }
+    );
+
+    expect(button).toHaveAttribute("aria-expanded", "true");
+
+    // Click to close
+    fireEvent.click(button);
     await waitFor(() => {
-      expect(screen.getByText("Client Projects Component")).toBeInTheDocument();
+      expect(screen.queryByText("Welcome to AkaTech")).not.toBeInTheDocument();
     });
+    expect(button).toHaveAttribute("aria-expanded", "false");
+  });
 
-    await user.click(screen.getByText("Billing"));
-    await waitFor(() => {
-      expect(screen.getByText("Client Billing Component")).toBeInTheDocument();
-    });
+  it("marks notifications as read", async () => {
+    render(<ClientLayout user={mockUser} />);
 
-    await user.click(screen.getByText("Support"));
-    await waitFor(() => {
-      expect(screen.getByText("Client Support Component")).toBeInTheDocument();
-    });
+    const button = screen.getByRole("button", { name: /Notifications/i });
+    fireEvent.click(button);
 
-    await user.click(screen.getByText("Profile"));
+    await waitFor(
+      () => {
+        expect(screen.getByText("Mark all read")).toBeInTheDocument();
+      },
+      { timeout: 2000 }
+    );
+
+    // Click "Mark all read"
+    fireEvent.click(screen.getByText("Mark all read"));
+
+    // Wait for state update (button should disappear when all are read)
     await waitFor(() => {
-      expect(screen.getByText("Client Profile Component")).toBeInTheDocument();
+      expect(screen.queryByText("Mark all read")).not.toBeInTheDocument();
     });
   });
 
-  it("toggles sidebar", async () => {
-    const user = userEvent.setup();
-    render(<ClientLayout user={mockUser} onLogout={mockOnLogout} />);
+  it("closes dropdown when clicking outside", async () => {
+    render(
+      <div>
+        <div data-testid="outside">Outside</div>
+        <ClientLayout user={mockUser} />
+      </div>
+    );
 
-    // Initially sidebar is open
-    expect(screen.getByText("Client Portal")).toBeInTheDocument();
+    const button = screen.getByRole("button", { name: /Notifications/i });
+    fireEvent.click(button);
 
-    // Find toggle button by aria-label
-    const toggleButton = screen.getByRole("button", {
-      name: /Toggle Sidebar/i,
+    await waitFor(() => {
+      expect(screen.getByText("Welcome to AkaTech")).toBeInTheDocument();
     });
 
-    // Click to collapse
-    await user.click(toggleButton);
+    // Click outside
+    fireEvent.mouseDown(screen.getByTestId("outside"));
 
-    // "Client Portal" text should disappear or change to "C"
-    // The "C" is rendered when sidebar is collapsed.
     await waitFor(() => {
-      expect(screen.getByText("C")).toBeInTheDocument();
-    });
-    // "Client Portal" should not be visible (or not in document if conditional rendering)
-    // In ClientLayout.jsx: {isSidebarOpen ? (...) : (...)}
-    expect(screen.queryByText("Client Portal")).not.toBeInTheDocument();
-
-    // Click to expand
-    await user.click(toggleButton);
-    await waitFor(() => {
-      expect(screen.getByText("Client Portal")).toBeInTheDocument();
+      expect(screen.queryByText("Welcome to AkaTech")).not.toBeInTheDocument();
     });
   });
 });

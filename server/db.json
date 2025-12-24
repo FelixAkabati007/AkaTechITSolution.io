@@ -135,6 +135,28 @@
       "timestamp": "2025-12-22T15:45:12.234Z",
       "status": "open",
       "responses": []
+    },
+    {
+      "id": "dffc6339-1914-4a65-8a4d-eb46321889ab",
+      "subject": "xyz",
+      "message": "dGVzdCBhLCBi",
+      "priority": "Normal",
+      "userEmail": "harrisonbanks007@gmail.com",
+      "userName": "Felix Akabati",
+      "timestamp": "2025-12-24T20:41:02.517Z",
+      "status": "open",
+      "responses": []
+    },
+    {
+      "id": "965c29ac-0110-410d-969e-07a803e18c3e",
+      "subject": "Update Request: Premium Commerce Project",
+      "message": "dGVzdA==",
+      "priority": "medium",
+      "userEmail": "harrisonbanks007@gmail.com",
+      "userName": "Felix Akabati",
+      "timestamp": "2025-12-24T20:46:37.869Z",
+      "status": "open",
+      "responses": []
     }
   ],
   "invoices": [],

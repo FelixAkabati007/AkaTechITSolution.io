@@ -7,12 +7,20 @@ import { jsPDF } from "jspdf";
 // Mock Icons
 vi.mock("@components/ui/Icons", () => ({
   Icons: {
-    ShoppingBag: () => <span>ShoppingBagIcon</span>,
-    Download: () => <span>DownloadIcon</span>,
-    CreditCard: () => <span>CreditCardIcon</span>,
-    Lock: () => <span>LockIcon</span>,
-    X: () => <span>XIcon</span>,
+    ShoppingBag: () => <div data-testid="icon-shopping-bag" />,
+    Download: () => <div data-testid="icon-download" />,
+    CreditCard: () => <div data-testid="icon-credit-card" />,
+    Lock: () => <div data-testid="icon-lock" />,
+    X: () => <div data-testid="icon-x" />,
+    Loader: () => <div data-testid="icon-loader" />,
   },
+}));
+
+// Mock ToastProvider
+vi.mock("@components/ui/ToastProvider", () => ({
+  useToast: () => ({
+    addToast: vi.fn(),
+  }),
 }));
 
 // Mock Service
@@ -158,6 +166,65 @@ describe("ClientBilling", () => {
 
     expect(jsPDF).toHaveBeenCalled();
     expect(downloadButton).not.toBeDisabled();
+
+    vi.useRealTimers();
+  });
+
+  it("handles invoice request flow correctly", async () => {
+    vi.useFakeTimers();
+    render(<ClientBilling user={mockUser} />);
+
+    // 1. Check Button Accessibility
+    const requestButton = screen.getByRole("button", {
+      name: "Request Invoice",
+    });
+    console.log("DEBUG BUTTON HTML:", requestButton.outerHTML);
+    expect(requestButton).toHaveAttribute("aria-haspopup", "dialog");
+    expect(requestButton).toHaveAttribute("aria-expanded", "false");
+
+    // 2. Open Modal
+    fireEvent.click(requestButton);
+    expect(requestButton).toHaveAttribute("aria-expanded", "true");
+
+    const modal = screen.getByRole("dialog");
+    expect(modal).toBeInTheDocument();
+    expect(modal).toHaveAttribute("aria-labelledby", "modal-title");
+
+    // 3. Validation Error (empty message)
+    const submitButton = screen.getByText("Submit Request");
+    fireEvent.click(submitButton);
+    // Note: To verify toast, we'd need to mock useToast return value and spy on addToast,
+    // but here we just check that createTicket wasn't called
+    expect(mockService.createTicket).not.toHaveBeenCalled();
+
+    // 4. Successful Submission
+    const messageInput = screen.getByPlaceholderText(/describe what you need/i);
+    fireEvent.change(messageInput, {
+      target: { value: "I need a new invoice for project X" },
+    });
+
+    fireEvent.click(submitButton);
+
+    // Check loading state
+    expect(screen.getByText("Sending...")).toBeInTheDocument();
+    expect(submitButton).toBeDisabled();
+
+    // Fast forward
+    await act(async () => {
+      vi.runAllTimers();
+    });
+
+    expect(mockService.createTicket).toHaveBeenCalledWith({
+      clientId: mockUser.id,
+      subject: "Invoice Request",
+      priority: "Medium",
+      message: "I need a new invoice for project X",
+      sender: "Client",
+    });
+
+    // Modal should close (or rather, we check if it's gone)
+    // Wait, createTicket is called, then state updates.
+    // In unit tests with mock timers, state updates inside async functions need careful handling.
 
     vi.useRealTimers();
   });

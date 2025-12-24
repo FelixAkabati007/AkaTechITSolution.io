@@ -10,7 +10,16 @@ vi.mock("@components/ui/Icons", () => ({
     LifeBuoy: () => <div data-testid="icon-life-buoy" />,
     X: () => <div data-testid="icon-x" />,
     MessageSquare: () => <div data-testid="icon-message-square" />,
+    Loader: () => <div data-testid="icon-loader" />,
+    Send: () => <div data-testid="icon-send" />,
   },
+}));
+
+// Mock ToastProvider
+vi.mock("@components/ui/ToastProvider", () => ({
+  useToast: () => ({
+    addToast: vi.fn(),
+  }),
 }));
 
 describe("ClientSupport", () => {
