@@ -144,8 +144,15 @@
       "userEmail": "harrisonbanks007@gmail.com",
       "userName": "Felix Akabati",
       "timestamp": "2025-12-24T20:41:02.517Z",
-      "status": "open",
-      "responses": []
+      "status": "resolved",
+      "responses": [
+        {
+          "id": "0500983e-4c1b-461e-ac40-2901c6ec4ed9",
+          "sender": "admin",
+          "message": "SXNzdWUgUmVzb2x2ZWQ=",
+          "timestamp": "2025-12-25T15:27:43.959Z"
+        }
+      ]
     },
     {
       "id": "965c29ac-0110-410d-969e-07a803e18c3e",
