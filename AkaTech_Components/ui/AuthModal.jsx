@@ -74,15 +74,20 @@ export const AuthModal = ({
     return () => document.removeEventListener("keydown", handleTabKey);
   }, [isOpen]);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    // Simulate logic
-    if (isLoginView) {
-      onLogin(email, password);
-      addToast(`Welcome back, ${email.split("@")[0]}!`, "success");
-    } else {
-      onSignup(email, password);
-      addToast("Account created successfully!", "success");
+    try {
+      if (isLoginView) {
+        await onLogin(email, password);
+        addToast(`Welcome back!`, "success");
+      } else {
+        // Signup with email is disabled/removed as per requirements
+        // onSignup(email, password);
+        addToast("Please use Google to Sign Up.", "info");
+      }
+    } catch (error) {
+      console.error(error);
+      addToast(error.message || "Authentication failed", "error");
     }
   };
 
@@ -163,39 +168,49 @@ export const AuthModal = ({
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-4">
-              <div>
-                <label className="block text-[10px] text-akatech-gold uppercase tracking-wider mb-2">
-                  Email Address
-                </label>
-                <input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="w-full bg-gray-50 dark:bg-akatech-dark border border-gray-300 dark:border-white/10 p-3 text-gray-900 dark:text-white focus:border-akatech-gold outline-none transition-colors"
-                  placeholder="name@company.com"
-                  required
-                  autoFocus
-                />
-              </div>
-              <div>
-                <label className="block text-[10px] text-akatech-gold uppercase tracking-wider mb-2">
-                  Password
-                </label>
-                <input
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="w-full bg-gray-50 dark:bg-akatech-dark border border-gray-300 dark:border-white/10 p-3 text-gray-900 dark:text-white focus:border-akatech-gold outline-none transition-colors"
-                  placeholder="••••••••"
-                  required
-                />
-              </div>
-              <button
-                type="submit"
-                className="w-full bg-gold-gradient text-black py-3 text-xs font-bold uppercase tracking-widest hover:opacity-90 transition shadow-lg mt-4"
-              >
-                {isLoginView ? "Sign In" : "Create Account"}
-              </button>
+              {isLoginView ? (
+                <>
+                  <div>
+                    <label className="block text-[10px] text-akatech-gold uppercase tracking-wider mb-2">
+                      Email Address
+                    </label>
+                    <input
+                      type="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      className="w-full bg-gray-50 dark:bg-akatech-dark border border-gray-300 dark:border-white/10 p-3 text-gray-900 dark:text-white focus:border-akatech-gold outline-none transition-colors"
+                      placeholder="name@company.com"
+                      required
+                      autoFocus
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] text-akatech-gold uppercase tracking-wider mb-2">
+                      Password
+                    </label>
+                    <input
+                      type="password"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      className="w-full bg-gray-50 dark:bg-akatech-dark border border-gray-300 dark:border-white/10 p-3 text-gray-900 dark:text-white focus:border-akatech-gold outline-none transition-colors"
+                      placeholder="••••••••"
+                      required
+                    />
+                  </div>
+                  <button
+                    type="submit"
+                    className="w-full bg-gold-gradient text-black py-3 text-xs font-bold uppercase tracking-widest hover:opacity-90 transition shadow-lg mt-4"
+                  >
+                    Sign In
+                  </button>
+                </>
+              ) : (
+                <div className="text-center py-4">
+                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                    Secure account creation is now exclusively via Google.
+                  </p>
+                </div>
+              )}
             </form>
 
             <div className="mt-8 text-center border-t border-gray-100 dark:border-white/5 pt-4 transition-colors duration-500">

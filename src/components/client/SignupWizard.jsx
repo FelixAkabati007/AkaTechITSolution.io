@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { GoogleLogin } from "@react-oauth/google";
-import { Icons } from "@components/ui/Icons";
-import { PRICING_PACKAGES } from "@lib/data";
+import { Icons } from "../ui/Icons";
+import { PRICING_PACKAGES } from "../../lib/data";
 
 const API_URL = "http://localhost:3001/api";
 
@@ -57,128 +57,19 @@ const StepPackageSelection = ({ selectedPackage, onSelect }) => {
   );
 };
 
-const StepEmailVerification = ({
-  email,
-  setEmail,
-  onVerify,
-  verified,
-  loading,
-}) => {
-  const [code, setCode] = useState("");
-  const [sent, setSent] = useState(false);
+const StepSignup = ({ onVerify, loading }) => {
   const [error, setError] = useState("");
-
-  const handleSendCode = async () => {
-    if (!email || !/\S+@\S+\.\S+/.test(email)) {
-      setError("Please enter a valid email address.");
-      return;
-    }
-    setError("");
-    try {
-      await onVerify("send", { email });
-      setSent(true);
-    } catch (err) {
-      setError(err.message || "Failed to send verification code.");
-    }
-  };
-
-  const handleVerifyCode = async () => {
-    if (!code || code.length < 6) {
-      setError("Please enter the 6-digit code.");
-      return;
-    }
-    setError("");
-    try {
-      await onVerify("validate", { email, code });
-    } catch (err) {
-      setError(err.message || "Invalid verification code.");
-    }
-  };
-
-  if (verified) {
-    return (
-      <div className="text-center py-8">
-        <div className="w-16 h-16 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-4">
-          <Icons.Check size={32} />
-        </div>
-        <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">
-          Email Verified!
-        </h3>
-        <p className="text-gray-500">You can now proceed to the next step.</p>
-      </div>
-    );
-  }
 
   return (
     <div className="max-w-md mx-auto space-y-6">
-      <h2 className="text-2xl font-serif font-bold text-gray-900 dark:text-white mb-4">
-        Verify Your Email
+      <h2 className="text-2xl font-serif font-bold text-gray-900 dark:text-white mb-4 text-center">
+        Sign Up / Log In
       </h2>
-      <p className="text-gray-500 text-sm mb-6">
-        We need to verify your email to secure your progress and account.
+      <p className="text-gray-500 text-sm mb-6 text-center">
+        Please sign in with Google to verify your identity and continue.
       </p>
 
       <div className="space-y-4">
-        <div>
-          <label className="block text-xs font-bold uppercase text-gray-500 mb-1">
-            Email Address
-          </label>
-          <div className="flex gap-2">
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              disabled={sent}
-              className="flex-1 bg-white dark:bg-akatech-card border border-gray-200 dark:border-white/10 rounded-lg px-4 py-2 text-gray-900 dark:text-white focus:outline-none focus:border-akatech-gold"
-              placeholder="you@example.com"
-            />
-            {!sent && (
-              <button
-                onClick={handleSendCode}
-                disabled={loading}
-                className="bg-akatech-gold text-white px-4 py-2 rounded-lg text-sm font-bold uppercase disabled:opacity-50"
-              >
-                {loading ? "Sending..." : "Send Code"}
-              </button>
-            )}
-          </div>
-        </div>
-
-        {sent && (
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-          >
-            <label className="block text-xs font-bold uppercase text-gray-500 mb-1">
-              Verification Code
-            </label>
-            <div className="flex gap-2">
-              <input
-                type="text"
-                value={code}
-                onChange={(e) =>
-                  setCode(e.target.value.replace(/\D/g, "").slice(0, 6))
-                }
-                className="flex-1 bg-white dark:bg-akatech-card border border-gray-200 dark:border-white/10 rounded-lg px-4 py-2 text-gray-900 dark:text-white focus:outline-none focus:border-akatech-gold tracking-widest text-center text-lg"
-                placeholder="000000"
-              />
-              <button
-                onClick={handleVerifyCode}
-                disabled={loading}
-                className="bg-akatech-gold text-white px-4 py-2 rounded-lg text-sm font-bold uppercase disabled:opacity-50"
-              >
-                {loading ? "Verifying..." : "Verify"}
-              </button>
-            </div>
-            <button
-              onClick={() => setSent(false)}
-              className="text-xs text-akatech-gold mt-2 hover:underline"
-            >
-              Change Email / Resend Code
-            </button>
-          </motion.div>
-        )}
-
         {error && (
           <div className="p-3 bg-red-50 text-red-600 text-sm rounded-lg flex items-center gap-2">
             <Icons.AlertTriangle size={16} />
@@ -186,16 +77,7 @@ const StepEmailVerification = ({
           </div>
         )}
 
-        <div className="relative flex items-center justify-center my-6">
-          <div className="absolute inset-0 flex items-center">
-            <div className="w-full border-t border-gray-200 dark:border-white/10"></div>
-          </div>
-          <div className="relative z-10 bg-gray-50 dark:bg-akatech-dark px-4 text-xs uppercase text-gray-500 font-bold">
-            Or continue with
-          </div>
-        </div>
-
-        <div className="flex justify-center relative">
+        <div className="flex justify-center relative py-8">
           {loading && (
             <div className="absolute inset-0 z-10 bg-white/50 dark:bg-black/50 flex items-center justify-center rounded-full">
               <div className="w-6 h-6 border-2 border-akatech-gold border-t-transparent rounded-full animate-spin"></div>
@@ -219,8 +101,15 @@ const StepEmailVerification = ({
             }}
             theme="filled_blue"
             shape="pill"
+            text="signin_with"
+            logo_alignment="left"
+            width="250"
           />
         </div>
+
+        <p className="text-xs text-center text-gray-400">
+          By continuing, you agree to our Terms of Service and Privacy Policy.
+        </p>
       </div>
     </div>
   );
@@ -432,9 +321,8 @@ export const SignupWizard = ({ initialPlan, onBack, onComplete }) => {
     setLoading(true);
     try {
       let endpoint;
-      if (action === "send") endpoint = "/signup/verify-email";
-      else if (action === "validate") endpoint = "/signup/validate-code";
-      else if (action === "google") endpoint = "/signup/verify-google";
+      if (action === "google") endpoint = "/signup/verify-google";
+      else return; // Should not happen
 
       const res = await fetch(`${API_URL}${endpoint}`, {
         method: "POST",
@@ -445,7 +333,7 @@ export const SignupWizard = ({ initialPlan, onBack, onComplete }) => {
 
       if (!res.ok) throw new Error(data.error || "Verification failed");
 
-      if (action === "validate" || action === "google") {
+      if (action === "google") {
         setEmailVerified(true);
         if (data.email) {
           setFormData((prev) => ({ ...prev, email: data.email }));
@@ -473,6 +361,9 @@ export const SignupWizard = ({ initialPlan, onBack, onComplete }) => {
         }
         setTimeout(() => setStep(3), 1000);
       }
+    } catch (err) {
+      console.error("Verification error:", err);
+      // Ensure we don't crash the app if something goes wrong
     } finally {
       setLoading(false);
     }
@@ -539,20 +430,22 @@ export const SignupWizard = ({ initialPlan, onBack, onComplete }) => {
         {/* Progress Bar */}
         <div className="mb-8">
           <div className="flex justify-between mb-2">
-            {["Package", "Verify", "Details", "Confirm"].map((label, idx) => (
-              <div
-                key={label}
-                className={`text-xs font-bold uppercase tracking-widest ${
-                  step > idx + 1
-                    ? "text-green-500"
-                    : step === idx + 1
-                    ? "text-akatech-gold"
-                    : "text-gray-300"
-                }`}
-              >
-                {label}
-              </div>
-            ))}
+            {["Package", "Sign Up / Log In", "Details", "Confirm"].map(
+              (label, idx) => (
+                <div
+                  key={label}
+                  className={`text-xs font-bold uppercase tracking-widest ${
+                    step > idx + 1
+                      ? "text-green-500"
+                      : step === idx + 1
+                      ? "text-akatech-gold"
+                      : "text-gray-300"
+                  }`}
+                >
+                  {label}
+                </div>
+              )
+            )}
           </div>
           <div className="h-1 bg-gray-200 dark:bg-white/10 rounded-full overflow-hidden">
             <motion.div
@@ -590,11 +483,8 @@ export const SignupWizard = ({ initialPlan, onBack, onComplete }) => {
               />
             )}
             {step === 2 && (
-              <StepEmailVerification
-                email={formData.email}
-                setEmail={(e) => setFormData((prev) => ({ ...prev, email: e }))}
+              <StepSignup
                 onVerify={handleEmailVerification}
-                verified={emailVerified}
                 loading={loading}
               />
             )}

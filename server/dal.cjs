@@ -5,7 +5,6 @@ const {
   messages,
   notifications,
   auditLogs,
-  emailVerifications,
   signupProgress,
   tickets,
   subscriptions,
@@ -99,38 +98,6 @@ const getAllAuditLogs = async () => {
   return await db.select().from(auditLogs).orderBy(desc(auditLogs.createdAt));
 };
 
-// Email Verifications
-const createEmailVerification = async (data) => {
-  if (!db) return null;
-  const result = await db.insert(emailVerifications).values(data).returning();
-  return result[0];
-};
-
-const getEmailVerification = async (email) => {
-  if (!db) return null;
-  const result = await db
-    .select()
-    .from(emailVerifications)
-    .where(eq(emailVerifications.email, email));
-  return result[0]; // Assuming latest? Or we should filter by token too
-};
-
-const getEmailVerificationByToken = async (token) => {
-  if (!db) return null;
-  const result = await db
-    .select()
-    .from(emailVerifications)
-    .where(eq(emailVerifications.token, token));
-  return result[0];
-};
-
-const deleteEmailVerification = async (email) => {
-  if (!db) return;
-  await db
-    .delete(emailVerifications)
-    .where(eq(emailVerifications.email, email));
-};
-
 // Signup Progress
 const upsertSignupProgress = async (email, data, step) => {
   if (!db) return null;
@@ -167,6 +134,15 @@ module.exports = {
   getUserByEmail,
   getUserById,
   createUser,
+  updateUser: async (id, data) => {
+    if (!db) return null;
+    const result = await db
+      .update(users)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(users.id, id))
+      .returning();
+    return result[0];
+  },
   getAllUsers,
   createProject,
   getAllProjects,
@@ -213,9 +189,6 @@ module.exports = {
   // Audit Logs
   createAuditLog,
   getAllAuditLogs,
-  createEmailVerification,
-  getEmailVerification,
-  deleteEmailVerification,
   upsertSignupProgress,
   getSignupProgress,
 
@@ -353,10 +326,6 @@ module.exports = {
   },
 
   // Email Verifications & Progress
-  createEmailVerification,
-  getEmailVerification,
-  getEmailVerificationByToken,
-  deleteEmailVerification,
   upsertSignupProgress,
   getSignupProgress,
 

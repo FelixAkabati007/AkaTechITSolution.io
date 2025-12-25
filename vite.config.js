@@ -19,6 +19,10 @@ export default defineConfig({
     host: true,
     port: 5175,
     strictPort: true,
+    headers: {
+      "Cross-Origin-Opener-Policy": "same-origin-allow-popups",
+      "Referrer-Policy": "no-referrer-when-downgrade",
+    },
   },
   build: {
     rollupOptions: {

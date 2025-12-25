@@ -11,47 +11,16 @@ const { Server } = require("socket.io");
 const fs = require("fs");
 const xss = require("xss");
 const crypto = require("crypto");
-const nodemailer = require("nodemailer");
-const dns = require("dns").promises; // Added for MX lookup
-const imaps = require("imap-simple");
-const { simpleParser } = require("mailparser");
+const bcrypt = require("bcryptjs");
 const { OAuth2Client } = require("google-auth-library");
 const dal = require("./dal.cjs");
 
-// --- Load .env manually ---
-const envPath = path.join(__dirname, "../.env");
-if (fs.existsSync(envPath)) {
-  const envConfig = fs.readFileSync(envPath, "utf8");
-  envConfig.split("\n").forEach((line) => {
-    const [key, value] = line.split("=");
-    if (key && value) {
-      process.env[key.trim()] = value.trim();
-    }
-  });
-}
+// --- Load .env manually (Removed: dotenv handles this) ---
+// const envPath = path.join(__dirname, "../.env");
+// ...
 
 const app = express();
 const server = http.createServer(app);
-
-// --- Email Transporter ---
-// Support for both Basic Auth and OAuth 2.0
-const authConfig = process.env.OAUTH_CLIENT_ID
-  ? {
-      type: "OAuth2",
-      user: process.env.EMAIL_USER,
-      clientId: process.env.OAUTH_CLIENT_ID,
-      clientSecret: process.env.OAUTH_CLIENT_SECRET,
-      refreshToken: process.env.OAUTH_REFRESH_TOKEN,
-    }
-  : {
-      user: process.env.EMAIL_USER,
-      pass: process.env.EMAIL_PASS,
-    };
-
-const transporter = nodemailer.createTransport({
-  service: "hotmail",
-  auth: authConfig,
-});
 
 const io = new Server(server, {
   cors: {
@@ -75,12 +44,6 @@ const limiter = rateLimit({
   message: { error: "Too many requests, please try again later." },
 });
 app.use("/api/", limiter);
-
-const verificationLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 5, // limit each IP to 5 verification requests per windowMs
-  message: { error: "Too many verification attempts, please try again later." },
-});
 
 // --- Encryption Helper (Simple for Demo) ---
 const encrypt = (text) => {
@@ -144,33 +107,76 @@ const authorizeAdmin = (req, res, next) => {
 
 // --- Routes ---
 
-const { OAuth2Client } = require("google-auth-library");
 const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
-// Google Auth
-app.post("/api/auth/google", async (req, res) => {
+// Google Auth (Unified for Signup and Login)
+app.post("/api/signup/verify-google", async (req, res) => {
   const { token } = req.body;
   if (!token) return res.status(400).json({ error: "Token required" });
 
   try {
-    // Verify ID Token
-    const ticket = await googleClient.verifyIdToken({
-      idToken: token,
-      audience: process.env.GOOGLE_CLIENT_ID,
-    });
-    const googleUser = ticket.getPayload();
+    let googleUser = {};
+
+    // Check if it's a JWT (ID Token) or Access Token
+    if (token.startsWith("ey")) {
+      // ID Token
+      const ticket = await googleClient.verifyIdToken({
+        idToken: token,
+        audience: process.env.GOOGLE_CLIENT_ID,
+      });
+      const payload = ticket.getPayload();
+      googleUser = {
+        sub: payload.sub,
+        email: payload.email,
+        name: payload.name,
+        picture: payload.picture,
+        email_verified: payload.email_verified,
+      };
+    } else {
+      // Access Token
+      const userInfoRes = await fetch(
+        "https://www.googleapis.com/oauth2/v3/userinfo",
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+      if (!userInfoRes.ok)
+        throw new Error("Failed to fetch user info with access token");
+      const payload = await userInfoRes.json();
+      googleUser = {
+        sub: payload.sub,
+        email: payload.email,
+        name: payload.name,
+        picture: payload.picture,
+        email_verified: payload.email_verified, // UserInfo might not have this, but usually implied if we got it?
+      };
+    }
+
+    if (!googleUser.email)
+      return res
+        .status(400)
+        .json({ error: "Email not found in Google profile" });
 
     let user = await dal.getUserByEmail(googleUser.email);
 
     if (!user) {
+      // Create new user (no password set initially for Google users)
       user = await dal.createUser({
         googleId: googleUser.sub,
         email: googleUser.email,
         name: googleUser.name,
         avatarUrl: googleUser.picture,
-        role: "user",
-        accountType: "Auto", // Default for Google users
+        role: "client",
+        accountType: "google",
+        passwordHash: null, // No password initially
       });
+      await logAudit("USER_REGISTER_GOOGLE", user.id, { email: user.email });
+    } else {
+      // Existing user
+      if (!user.googleId) {
+        await dal.updateUser(user.id, { googleId: googleUser.sub });
+      }
+      await logAudit("USER_LOGIN_GOOGLE", user.id, { email: user.email });
     }
 
     const sessionToken = jwt.sign(
@@ -179,10 +185,58 @@ app.post("/api/auth/google", async (req, res) => {
       { expiresIn: "24h" }
     );
 
-    res.json({ token: sessionToken, user });
+    const { passwordHash, ...safeUser } = user;
+    res.json({
+      token: sessionToken,
+      user: { ...safeUser, hasPassword: !!passwordHash },
+      email: user.email,
+    });
   } catch (error) {
     console.error("Google Auth Error:", error);
-    res.status(401).json({ error: "Authentication failed" });
+    res
+      .status(401)
+      .json({ error: "Authentication failed", details: error.message });
+  }
+});
+
+// Alias for legacy/App.jsx calls (optional, but good for backward compat if App.jsx isn't updated immediately)
+app.post("/api/auth/google", (req, res) => {
+  // Redirect internal logic or just forward
+  // We can just reuse the handler if we extracted it, but for now I'll just 307 redirect or duplicate logic?
+  // Easier to just update App.jsx. But to be safe, I'll add a redirect handler.
+  res.redirect(307, "/api/signup/verify-google");
+});
+
+// Change Password
+app.post("/api/auth/change-password", authenticateToken, async (req, res) => {
+  const { oldPassword, newPassword } = req.body;
+  if (!newPassword || newPassword.length < 6) {
+    return res
+      .status(400)
+      .json({ error: "New password must be at least 6 characters" });
+  }
+
+  try {
+    const user = await dal.getUserById(req.user.id);
+    if (!user) return res.status(404).json({ error: "User not found" });
+
+    // If user has a password, verify it
+    if (user.passwordHash) {
+      if (!oldPassword)
+        return res.status(400).json({ error: "Current password is required" });
+      const match = await bcrypt.compare(oldPassword, user.passwordHash);
+      if (!match)
+        return res.status(400).json({ error: "Incorrect current password" });
+    }
+
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    await dal.updateUser(user.id, { passwordHash: hashedPassword });
+    await logAudit("PASSWORD_CHANGE", user.id, { email: user.email });
+
+    res.json({ message: "Password updated successfully" });
+  } catch (error) {
+    console.error("Change Password Error:", error);
+    res.status(500).json({ error: "Failed to change password" });
   }
 });
 
@@ -192,7 +246,8 @@ app.get("/api/auth/me", authenticateToken, async (req, res) => {
   if (!user) {
     return res.status(404).json({ message: "User not found" });
   }
-  res.json({ user });
+  const { passwordHash, ...safeUser } = user;
+  res.json({ user: { ...safeUser, hasPassword: !!passwordHash } });
 });
 
 // 0.2 Register User (Email/Password)
@@ -448,31 +503,73 @@ app.get("/api/clients", authenticateToken, async (req, res) => {
   res.json(Array.from(clients.values()));
 });
 
-// 2. Admin Login (Demo)
+// 2. Login (Admin & Client)
 app.post("/api/login", async (req, res) => {
-  const { username, password } = req.body;
+  const { username, password } = req.body; // username is email for clients
 
-  if (username === "admin" && password === "admin123") {
-    // Ensure admin user exists in DB
-    let adminUser = await dal.getUserByEmail("admin@akatech.com");
+  if (!username || !password) {
+    return res
+      .status(400)
+      .json({ error: "Email/Username and password are required" });
+  }
 
-    if (!adminUser) {
-      adminUser = await dal.createUser({
-        name: "System Admin",
-        email: "admin@akatech.com",
-        role: "admin",
+  try {
+    // 1. Check for admin hardcoded credentials (legacy/demo)
+    if (username === "admin" && password === "admin123") {
+      let adminUser = await dal.getUserByEmail("admin@akatech.com");
+      if (!adminUser) {
+        adminUser = await dal.createUser({
+          name: "System Admin",
+          email: "admin@akatech.com",
+          role: "admin",
+          passwordHash: await bcrypt.hash("admin123", 10),
+          accountType: "admin",
+        });
+      }
+      const token = jwt.sign(
+        { id: adminUser.id, email: adminUser.email, role: "admin" },
+        SECRET_KEY,
+        { expiresIn: "1h" }
+      );
+      await logAudit("ADMIN_LOGIN", adminUser.id, { email: adminUser.email });
+      return res.json({ token, user: adminUser });
+    }
+
+    // 2. Check for real user in DB
+    const user = await dal.getUserByEmail(username);
+
+    if (!user) {
+      return res.status(401).json({ error: "Invalid credentials" });
+    }
+
+    // 3. Verify Password
+    if (!user.passwordHash) {
+      // User exists but has no password (e.g. Google only)
+      return res.status(401).json({
+        error: "This account uses Google Sign-In. Please log in with Google.",
       });
     }
 
+    const match = await bcrypt.compare(password, user.passwordHash);
+    if (!match) {
+      return res.status(401).json({ error: "Invalid credentials" });
+    }
+
+    // 4. Generate Token
     const token = jwt.sign(
-      { id: adminUser.id, email: adminUser.email, role: "admin" },
+      { id: user.id, email: user.email, role: user.role },
       SECRET_KEY,
-      { expiresIn: "1h" }
+      { expiresIn: "24h" }
     );
 
-    res.json({ token, user: adminUser });
-  } else {
-    res.status(401).json({ error: "Invalid credentials" });
+    // 5. Audit Log
+    await logAudit("USER_LOGIN", user.id, { email: user.email });
+
+    const { passwordHash, ...safeUser } = user;
+    res.json({ token, user: { ...safeUser, hasPassword: !!passwordHash } });
+  } catch (error) {
+    console.error("Login Error:", error);
+    res.status(500).json({ error: "Login failed" });
   }
 });
 
@@ -684,22 +781,12 @@ app.patch(
 
 // --- Multi-Step Signup Endpoints ---
 
-// Helper: Check MX Record
-const checkMxRecord = async (email) => {
-  try {
-    const domain = email.split("@")[1];
-    if (!domain) return false;
-    const records = await dns.resolveMx(domain);
-    return records && records.length > 0;
-  } catch (err) {
-    console.error(`MX Check failed for ${email}:`, err.message);
-    return false;
-  }
-};
-
 // 10. Google Verification
 app.post("/api/signup/verify-google", async (req, res) => {
+  console.log("Verify Google Request Body:", req.body);
   const { token } = req.body;
+  console.log("GOOGLE_CLIENT_ID:", process.env.GOOGLE_CLIENT_ID);
+
   if (!token) return res.status(400).json({ error: "Token is required" });
 
   try {
@@ -723,139 +810,10 @@ app.post("/api/signup/verify-google", async (req, res) => {
     }
   } catch (error) {
     console.error("Google verification error:", error);
-    res.status(400).json({ error: "Invalid Google Token" });
-  }
-});
-
-// 10a. Send Verification Email
-app.post("/api/signup/verify-email", verificationLimiter, async (req, res) => {
-  const { email } = req.body;
-  if (!email) return res.status(400).json({ error: "Email is required" });
-
-  // 1. Format Validation (RFC 5322 regex approximation)
-  const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
-  if (!emailRegex.test(email)) {
-    return res.status(400).json({ error: "Invalid email format" });
-  }
-
-  // 2. MX Record Lookup
-  const mxValid = await checkMxRecord(email);
-  if (!mxValid) {
-    return res
+    res
       .status(400)
-      .json({ error: "Invalid email domain (no MX record found)" });
+      .json({ error: "Invalid Google Token", details: error.message });
   }
-
-  const verificationCode = Math.floor(
-    100000 + Math.random() * 900000
-  ).toString();
-  const verificationToken = crypto.randomUUID();
-
-  // Store code in memory or DB (for production, use DB/Redis with expiration)
-  await dal.deleteEmailVerification(email);
-
-  await dal.createEmailVerification({
-    email,
-    code: verificationCode,
-    token: verificationToken,
-    expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(), // 24 hours (User requirement)
-  });
-
-  // Send Email
-  const verificationLink = `http://localhost:5175/verify-email?token=${verificationToken}`;
-  const mailOptions = {
-    from: process.env.EMAIL_USER,
-    to: email,
-    subject: "AkaTech - Verify your email",
-    text: `Your verification code is: ${verificationCode}. \n\nOr click this link to verify: ${verificationLink}\n\nThis link expires in 24 hours.`,
-    html: `
-      <h3>Verify your email</h3>
-      <p>Your verification code is: <strong>${verificationCode}</strong></p>
-      <p>Or click the link below:</p>
-      <a href="${verificationLink}">Verify Email</a>
-      <p>This link expires in 24 hours.</p>
-    `,
-  };
-
-  transporter.sendMail(mailOptions, (error, info) => {
-    if (error) {
-      console.error("Email send error:", error);
-      // For demo purposes, we'll return the code if email fails (so you can test)
-      return res.status(200).json({
-        message: "Verification code sent (simulated)",
-        debugCode: verificationCode,
-        debugLink: verificationLink,
-      });
-    }
-    res.json({ message: "Verification code sent" });
-  });
-});
-
-// 10b. Validate Verification Code
-app.post("/api/signup/validate-code", verificationLimiter, async (req, res) => {
-  const { email, code, token } = req.body;
-
-  let record;
-  if (token) {
-    record = await dal.getEmailVerificationByToken(token);
-  } else if (email) {
-    record = await dal.getEmailVerification(email);
-    // If we fetched by email, check code match
-    if (record && record.code !== code) {
-      record = null;
-    }
-  }
-
-  if (!record) {
-    return res.status(400).json({ error: "Invalid code or token" });
-  }
-
-  if (new Date(record.expiresAt) < new Date()) {
-    return res.status(400).json({ error: "Verification expired" });
-  }
-
-  // Code is valid
-  // Mark as verified? Or just return success.
-  // We can update the record to "verified" state if we want to prevent reuse or support polling.
-
-  res.json({ message: "Email verified successfully", email: record.email });
-});
-
-// 10b-2. Validate Verification Link (Get Request)
-app.get("/api/signup/verify-link", verificationLimiter, async (req, res) => {
-  const { token } = req.query;
-  const record = await dal.getEmailVerificationByToken(token);
-
-  if (!record) {
-    return res.status(400).json({ error: "Invalid token" });
-  }
-
-  if (new Date(record.expiresAt) < new Date()) {
-    return res.status(400).send("<h1>Link expired</h1>");
-  }
-
-  // Ideally, redirect to frontend success page
-  // For now, return HTML
-  res.send(`
-    <html>
-      <head>
-        <title>Email Verified</title>
-        <style>
-          body { font-family: sans-serif; text-align: center; padding: 50px; background: #f9f9f9; }
-          .container { background: white; padding: 40px; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); max-width: 500px; margin: 0 auto; }
-          h1 { color: #16a34a; }
-          p { color: #666; }
-        </style>
-      </head>
-      <body>
-        <div class="container">
-          <h1>Email Verified Successfully!</h1>
-          <p>You have successfully verified your email: <strong>${record.email}</strong></p>
-          <p>You can close this tab and return to the signup wizard.</p>
-        </div>
-      </body>
-    </html>
-  `);
 });
 
 // 10c. Save Progress (Draft)
@@ -1126,51 +1084,6 @@ app.get(
     res.json(notifications.slice(0, 50));
   }
 );
-
-// 7. Send Direct Message (Outlook Integration)
-app.post("/api/send-email", authenticateToken, async (req, res) => {
-  const { to, subject, message } = req.body;
-
-  if (!to || !subject || !message) {
-    return res
-      .status(400)
-      .json({ error: "To, Subject, and Message are required." });
-  }
-
-  const mailOptions = {
-    from: process.env.EMAIL_USER,
-    to: to,
-    subject: subject,
-    text: message,
-  };
-
-  transporter.sendMail(mailOptions, async (error, info) => {
-    if (error) {
-      console.error("Email send error:", error);
-      return res.status(500).json({ error: "Failed to send email." });
-    }
-
-    // Save to DB as sent message
-    const sentMsg = await dal.createMessage({
-      name: "Admin",
-      email: to, // The recipient
-      subject: subject,
-      content: encrypt(message),
-      status: "sent",
-      // Schema doesn't have 'direction'.
-      // We can infer from name='Admin' or add direction to schema.
-      // For now, schema is fine.
-      ip: req.ip,
-      userAgent: req.get("User-Agent"),
-    });
-
-    io.emit("new_message", { ...sentMsg, content: message });
-
-    await logAudit("SEND_EMAIL", req.user.name, { to, subject });
-
-    res.json({ message: "Email sent successfully", info });
-  });
-});
 
 // --- Global Error Handler ---
 app.use((err, req, res, next) => {

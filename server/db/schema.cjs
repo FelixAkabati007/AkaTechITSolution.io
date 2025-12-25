@@ -64,15 +64,6 @@ const auditLogs = pgTable("audit_logs", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
-const emailVerifications = pgTable("email_verifications", {
-  id: uuid("id").defaultRandom().primaryKey(),
-  email: text("email").notNull(),
-  code: text("code"),
-  token: text("token"),
-  expiresAt: timestamp("expires_at"),
-  createdAt: timestamp("created_at").defaultNow(),
-});
-
 const signupProgress = pgTable("signup_progress", {
   id: uuid("id").defaultRandom().primaryKey(),
   email: text("email").unique().notNull(),
@@ -115,7 +106,6 @@ module.exports = {
   messages,
   notifications,
   auditLogs,
-  emailVerifications,
   signupProgress,
   tickets,
   subscriptions,

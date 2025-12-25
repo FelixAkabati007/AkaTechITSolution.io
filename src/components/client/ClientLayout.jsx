@@ -9,7 +9,7 @@ import { ClientBilling } from "./ClientBilling";
 import { ClientSupport } from "./ClientSupport";
 import { ClientProfile } from "./ClientProfile";
 
-export const ClientLayout = ({ user, onLogout }) => {
+export const ClientLayout = ({ user, onLogout, onUserUpdate }) => {
   const [activeTab, setActiveTab] = useState("dashboard");
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isMobile, setIsMobile] = useState(false);
@@ -167,7 +167,7 @@ export const ClientLayout = ({ user, onLogout }) => {
       case "support":
         return <ClientSupport user={user} />;
       case "profile":
-        return <ClientProfile user={user} />;
+        return <ClientProfile user={user} onUserUpdate={onUserUpdate} />;
       default:
         return <ClientDashboard user={user} setActiveTab={setActiveTab} />;
     }

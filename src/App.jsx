@@ -94,20 +94,24 @@ export default function App() {
   }, []);
 
   const handleLogin = (email, password) => {
-    // Check for specific admin credentials or legacy admin email pattern
-    const isAdmin =
-      (email === "JohnDoe@gmail.com" && password === "qwerty12345") ||
-      email.includes("admin");
-
-    const mockUser = {
-      name: email.split("@")[0],
-      email: email,
-      avatarUrl: null,
-      isAdmin: isAdmin,
-    };
-    setUser(mockUser);
-    setAuthModalOpen(false);
-    setView("dashboard");
+    return fetch("http://localhost:3001/api/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username: email, password }),
+    })
+      .then((res) => {
+        if (!res.ok)
+          return res.json().then((err) => {
+            throw new Error(err.error || "Login failed");
+          });
+        return res.json();
+      })
+      .then((data) => {
+        localStorage.setItem("token", data.token);
+        setUser(data.user);
+        setAuthModalOpen(false);
+        setView("dashboard");
+      });
   };
 
   const handleUserUpdate = (updatedUser) => {
@@ -132,7 +136,7 @@ export default function App() {
   };
 
   const handleGoogleLogin = (tokenResponse) => {
-    fetch("http://localhost:3001/api/auth/google", {
+    fetch("http://localhost:3001/api/signup/verify-google", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -155,7 +159,12 @@ export default function App() {
   };
 
   return (
-    <GoogleOAuthProvider clientId="336631405778-sngll5qo5a8mo57ifn9ru8ol1m7r7cgs.apps.googleusercontent.com">
+    <GoogleOAuthProvider
+      clientId="336631405778-sngll5qo5a8mo57ifn9ru8ol1m7r7cgs.apps.googleusercontent.com"
+      onScriptLoadError={() =>
+        console.error("Google Sign-In script failed to load")
+      }
+    >
       <div className={`min-h-screen ${mode} transition-colors duration-300`}>
         <Analytics />
         <ToastProvider>

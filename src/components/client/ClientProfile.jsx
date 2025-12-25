@@ -2,8 +2,10 @@ import React, { useState, useEffect } from "react";
 import { Icons } from "@components/ui/Icons";
 import { AvatarUpload } from "@components/ui/AvatarUpload";
 import { mockService } from "@lib/mockData";
+import { useToast } from "@components/ui/ToastProvider";
 
-export const ClientProfile = ({ user }) => {
+export const ClientProfile = ({ user, onUserUpdate }) => {
+  const { addToast } = useToast();
   const [profile, setProfile] = useState(user);
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState(user);
@@ -20,10 +22,12 @@ export const ClientProfile = ({ user }) => {
 
   const handleProfileUpdate = (e) => {
     e.preventDefault();
+    // For now keeping mockService for profile details, but user might expect real update
+    // Ideally this should also call an API
     mockService.updateUser(formData);
     setProfile(formData);
     setIsEditing(false);
-    // In a real app, you would show a success toast here
+    addToast("Profile updated", "success");
   };
 
   const handleAvatarUpload = (dataUrl) => {
@@ -41,10 +45,50 @@ export const ClientProfile = ({ user }) => {
     setProfile({ ...profile, avatarUrl: null });
   };
 
-  const handlePasswordUpdate = (e) => {
+  const handlePasswordUpdate = async (e) => {
     e.preventDefault();
-    // In a real app, you would validate and update password
-    setPasswordData({ current: "", new: "", confirm: "" });
+
+    if (passwordData.new !== passwordData.confirm) {
+      addToast("New passwords do not match", "error");
+      return;
+    }
+
+    if (user.hasPassword && !passwordData.current) {
+      addToast("Current password is required", "error");
+      return;
+    }
+
+    try {
+      const token = localStorage.getItem("token");
+      const res = await fetch(
+        "http://localhost:3001/api/auth/change-password",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            oldPassword: passwordData.current,
+            newPassword: passwordData.new,
+          }),
+        }
+      );
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to update password");
+
+      addToast("Password updated successfully", "success");
+      setPasswordData({ current: "", new: "", confirm: "" });
+
+      // Update local user state if we just set a password for the first time
+      if (!user.hasPassword && onUserUpdate) {
+        onUserUpdate({ ...user, hasPassword: true });
+      }
+    } catch (error) {
+      console.error(error);
+      addToast(error.message, "error");
+    }
   };
 
   return (
@@ -149,27 +193,44 @@ export const ClientProfile = ({ user }) => {
               <Icons.Lock className="w-5 h-5 text-akatech-gold" /> Security
             </h3>
 
-            <form onSubmit={handlePasswordUpdate} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Current Password
-                </label>
-                <input
-                  type="password"
-                  className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-white/10 bg-transparent text-gray-900 dark:text-white focus:ring-2 focus:ring-akatech-gold outline-none"
-                  value={passwordData.current}
-                  onChange={(e) =>
-                    setPasswordData({
-                      ...passwordData,
-                      current: e.target.value,
-                    })
-                  }
-                />
+            {profile.accountType === "google" && (
+              <div className="mb-6 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg flex items-center gap-3 border border-blue-100 dark:border-blue-900/30">
+                <Icons.Google className="w-5 h-5" />
+                <div>
+                  <p className="text-sm font-bold text-gray-900 dark:text-white">
+                    Connected with Google
+                  </p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">
+                    You can sign in securely using your Google account.
+                  </p>
+                </div>
               </div>
+            )}
+
+            <form onSubmit={handlePasswordUpdate} className="space-y-4">
+              {user.hasPassword && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Current Password
+                  </label>
+                  <input
+                    type="password"
+                    className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-white/10 bg-transparent text-gray-900 dark:text-white focus:ring-2 focus:ring-akatech-gold outline-none"
+                    value={passwordData.current}
+                    onChange={(e) =>
+                      setPasswordData({
+                        ...passwordData,
+                        current: e.target.value,
+                      })
+                    }
+                    required
+                  />
+                </div>
+              )}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    New Password
+                    {user.hasPassword ? "New Password" : "Set Password"}
                   </label>
                   <input
                     type="password"
@@ -178,11 +239,13 @@ export const ClientProfile = ({ user }) => {
                     onChange={(e) =>
                       setPasswordData({ ...passwordData, new: e.target.value })
                     }
+                    required
+                    minLength={6}
                   />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Confirm New Password
+                    Confirm Password
                   </label>
                   <input
                     type="password"
@@ -194,6 +257,7 @@ export const ClientProfile = ({ user }) => {
                         confirm: e.target.value,
                       })
                     }
+                    required
                   />
                 </div>
               </div>
@@ -203,7 +267,7 @@ export const ClientProfile = ({ user }) => {
                   type="submit"
                   className="px-6 py-2 border border-akatech-gold text-akatech-gold rounded-lg font-bold hover:bg-akatech-gold hover:text-white transition-all"
                 >
-                  Update Password
+                  {user.hasPassword ? "Update Password" : "Set Password"}
                 </button>
               </div>
             </form>
