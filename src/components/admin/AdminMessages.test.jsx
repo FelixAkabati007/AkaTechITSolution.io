@@ -11,6 +11,12 @@ vi.mock("socket.io-client", () => ({
   }),
 }));
 
+// Mock config
+vi.mock("@lib/config", () => ({
+  getApiUrl: () => "http://test-api.com",
+  getSocketUrl: () => "http://test-socket.com",
+}));
+
 // Mock icons
 vi.mock("../../components/ui/Icons", () => ({
   Icons: {

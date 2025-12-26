@@ -5,64 +5,111 @@ const {
   timestamp,
   boolean,
   jsonb,
+  index,
 } = require("drizzle-orm/pg-core");
 
-const users = pgTable("users", {
-  id: uuid("id").defaultRandom().primaryKey(),
-  email: text("email").notNull().unique(),
-  passwordHash: text("password_hash"),
-  name: text("name"),
-  role: text("role").default("client"),
-  avatarUrl: text("avatar_url"),
-  googleId: text("google_id"),
-  accountType: text("account_type"),
-  createdAt: timestamp("created_at").defaultNow(),
-  updatedAt: timestamp("updated_at").defaultNow(),
-});
+const users = pgTable(
+  "users",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    email: text("email").notNull().unique(),
+    passwordHash: text("password_hash"),
+    name: text("name"),
+    role: text("role").default("client"),
+    avatarUrl: text("avatar_url"),
+    googleId: text("google_id"),
+    accountType: text("account_type"),
+    createdAt: timestamp("created_at").defaultNow(),
+    updatedAt: timestamp("updated_at").defaultNow(),
+  },
+  (table) => {
+    return {
+      emailIdx: index("users_email_idx").on(table.email),
+      googleIdIdx: index("users_google_id_idx").on(table.googleId),
+    };
+  }
+);
 
-const projects = pgTable("projects", {
-  id: uuid("id").defaultRandom().primaryKey(),
-  userId: uuid("user_id").references(() => users.id),
-  name: text("name"), // Client/Project name
-  email: text("email"), // Legacy or Contact Email
-  company: text("company"),
-  plan: text("plan"),
-  notes: text("notes"),
-  status: text("status").default("pending"),
-  createdAt: timestamp("created_at").defaultNow(),
-  updatedAt: timestamp("updated_at").defaultNow(),
-});
+const projects = pgTable(
+  "projects",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    userId: uuid("user_id").references(() => users.id),
+    name: text("name"), // Client/Project name
+    email: text("email"), // Legacy or Contact Email
+    company: text("company"),
+    plan: text("plan"),
+    notes: text("notes"),
+    status: text("status").default("pending"),
+    createdAt: timestamp("created_at").defaultNow(),
+    updatedAt: timestamp("updated_at").defaultNow(),
+  },
+  (table) => {
+    return {
+      userIdIdx: index("projects_user_id_idx").on(table.userId),
+      emailIdx: index("projects_email_idx").on(table.email),
+    };
+  }
+);
 
-const messages = pgTable("messages", {
-  id: uuid("id").defaultRandom().primaryKey(),
-  name: text("name"),
-  email: text("email"),
-  subject: text("subject"),
-  content: text("content"),
-  status: text("status").default("unread"),
-  ip: text("ip"),
-  userAgent: text("user_agent"),
-  createdAt: timestamp("created_at").defaultNow(),
-});
+const messages = pgTable(
+  "messages",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    name: text("name"),
+    email: text("email"),
+    subject: text("subject"),
+    content: text("content"),
+    status: text("status").default("unread"),
+    ip: text("ip"),
+    userAgent: text("user_agent"),
+    createdAt: timestamp("created_at").defaultNow(),
+  },
+  (table) => {
+    return {
+      emailIdx: index("messages_email_idx").on(table.email),
+      statusIdx: index("messages_status_idx").on(table.status),
+    };
+  }
+);
 
-const notifications = pgTable("notifications", {
-  id: uuid("id").defaultRandom().primaryKey(),
-  userId: uuid("user_id").references(() => users.id), // Nullable for system-wide
-  title: text("title"),
-  message: text("message"),
-  read: boolean("read").default(false),
-  readBy: jsonb("read_by"), // For system-wide notifications
-  target: text("target").default("user"), // 'user' or 'all'
-  createdAt: timestamp("created_at").defaultNow(),
-});
+const notifications = pgTable(
+  "notifications",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    userId: uuid("user_id").references(() => users.id), // Nullable for system-wide
+    title: text("title"),
+    message: text("message"),
+    read: boolean("read").default(false),
+    readBy: jsonb("read_by"), // For system-wide notifications
+    target: text("target").default("user"), // 'user' or 'all'
+    createdAt: timestamp("created_at").defaultNow(),
+  },
+  (table) => {
+    return {
+      userIdIdx: index("notifications_user_id_idx").on(table.userId),
+    };
+  }
+);
 
-const auditLogs = pgTable("audit_logs", {
-  id: uuid("id").defaultRandom().primaryKey(),
-  action: text("action"),
-  performedBy: text("performed_by"), // Storing ID or Name as text for flexibility
-  details: jsonb("details"),
-  createdAt: timestamp("created_at").defaultNow(),
-});
+const auditLogs = pgTable(
+  "audit_logs",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    action: text("action"),
+    performedBy: text("performed_by"), // Storing ID or Name as text for flexibility
+    details: jsonb("details"),
+    createdAt: timestamp("created_at").defaultNow(),
+  },
+  (table) => {
+    return {
+      actionIdx: index("audit_logs_action_idx").on(table.action),
+      performedByIdx: index("audit_logs_performed_by_idx").on(
+        table.performedBy
+      ),
+    };
+  }
+);
 
 const signupProgress = pgTable("signup_progress", {
   id: uuid("id").defaultRandom().primaryKey(),

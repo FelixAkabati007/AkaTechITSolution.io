@@ -5,6 +5,10 @@ import { mockService } from "../../lib/mockData";
 import { PRICING_PACKAGES } from "../../lib/data";
 
 // Mock the dependencies
+vi.mock("@lib/config", () => ({
+  getApiUrl: () => "http://localhost:3000/api",
+}));
+
 vi.mock("../../lib/mockData", () => ({
   mockService: {
     getSubscriptions: vi.fn(),
@@ -59,6 +63,48 @@ describe("AdminSubscriptions", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockService.getSubscriptions.mockReturnValue(mockSubscriptions);
+
+    // Mock localStorage
+    const localStorageMock = (function () {
+      let store = {
+        adminToken: "dummy-token",
+      };
+      return {
+        getItem: function (key) {
+          return store[key] || null;
+        },
+        setItem: function (key, value) {
+          store[key] = value.toString();
+        },
+        removeItem: function (key) {
+          delete store[key];
+        },
+        clear: function () {
+          store = {};
+        },
+      };
+    })();
+
+    Object.defineProperty(window, "localStorage", {
+      value: localStorageMock,
+    });
+
+    // Mock global fetch
+    global.fetch = vi.fn((url) => {
+      if (url.includes("/subscriptions?")) {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({ data: mockSubscriptions, total: 2 }),
+        });
+      }
+      if (url.includes("/action")) {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({ success: true }),
+        });
+      }
+      return Promise.reject(new Error("Unknown URL"));
+    });
   });
 
   it("renders subscription list", async () => {
@@ -88,12 +134,11 @@ describe("AdminSubscriptions", () => {
     fireEvent.change(statusSelect, { target: { value: "active" } });
 
     await waitFor(() => {
-      // Wait for loading to finish and John Doe to appear
-      expect(screen.getByText("John Doe")).toBeInTheDocument();
+      expect(global.fetch).toHaveBeenCalledWith(
+        expect.stringContaining("status=active"),
+        expect.anything()
+      );
     });
-
-    // Now check that Jane Smith is not there
-    expect(screen.queryByText("Jane Smith")).not.toBeInTheDocument();
   });
 
   it("handles approve action for pending subscription", async () => {
@@ -106,9 +151,12 @@ describe("AdminSubscriptions", () => {
     fireEvent.click(approveBtn);
 
     await waitFor(() => {
-      expect(mockService.updateSubscriptionStatus).toHaveBeenCalledWith(
-        2,
-        "active"
+      expect(global.fetch).toHaveBeenCalledWith(
+        expect.stringContaining("/subscriptions/2/action"),
+        expect.objectContaining({
+          method: "PATCH",
+          body: JSON.stringify({ action: "approve", details: {} }),
+        })
       );
     });
 
@@ -129,7 +177,13 @@ describe("AdminSubscriptions", () => {
     fireEvent.click(extendBtn);
 
     await waitFor(() => {
-      expect(mockService.extendSubscription).toHaveBeenCalledWith(1, 1);
+      expect(global.fetch).toHaveBeenCalledWith(
+        expect.stringContaining("/subscriptions/1/action"),
+        expect.objectContaining({
+          method: "PATCH",
+          body: JSON.stringify({ action: "extend", details: { months: 1 } }),
+        })
+      );
     });
 
     await waitFor(() => {

@@ -3,6 +3,7 @@ import { Icons } from "@components/ui/Icons";
 import { AvatarUpload } from "@components/ui/AvatarUpload";
 import { mockService } from "@lib/mockData";
 import { useToast } from "@components/ui/ToastProvider";
+import { getApiUrl } from "@lib/config";
 
 export const ClientProfile = ({ user, onUserUpdate }) => {
   const { addToast } = useToast();
@@ -60,20 +61,17 @@ export const ClientProfile = ({ user, onUserUpdate }) => {
 
     try {
       const token = localStorage.getItem("token");
-      const res = await fetch(
-        "http://localhost:3001/api/auth/change-password",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({
-            oldPassword: passwordData.current,
-            newPassword: passwordData.new,
-          }),
-        }
-      );
+      const res = await fetch(`${getApiUrl()}/auth/change-password`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          oldPassword: passwordData.current,
+          newPassword: passwordData.new,
+        }),
+      });
 
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to update password");

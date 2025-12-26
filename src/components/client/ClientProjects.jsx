@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Icons } from "@components/ui/Icons";
 import ProjectEmptyState from "./ProjectEmptyState";
+import { getApiUrl } from "@lib/config";
 
 export const ClientProjects = ({ user }) => {
   const [projects, setProjects] = useState([]);
@@ -15,9 +16,7 @@ export const ClientProjects = ({ user }) => {
     if (!user?.email) return;
     try {
       const res = await fetch(
-        `http://localhost:3001/api/client/projects?email=${encodeURIComponent(
-          user.email
-        )}`
+        `${getApiUrl()}/client/projects?email=${encodeURIComponent(user.email)}`
       );
       if (res.ok) {
         const data = await res.json();
@@ -88,7 +87,7 @@ export const ClientProjects = ({ user }) => {
     if (!requestMessage.trim()) return;
 
     try {
-      const res = await fetch("http://localhost:3001/api/tickets", {
+      const res = await fetch(`${getApiUrl()}/tickets`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

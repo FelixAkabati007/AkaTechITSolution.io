@@ -6,6 +6,7 @@ const bodyParser = require("body-parser");
 const jwt = require("jsonwebtoken");
 const helmet = require("helmet");
 const rateLimit = require("express-rate-limit");
+const compression = require("compression");
 const http = require("http");
 const { Server } = require("socket.io");
 const fs = require("fs");
@@ -25,18 +26,52 @@ const server = http.createServer(app);
 
 const io = new Server(server, {
   cors: {
-    origin: "*", // In production, restrict this
+    origin: true, // Allow all origins (or specific ones)
     methods: ["GET", "POST"],
+    credentials: true,
   },
+  transports: ["polling", "websocket"], // Ensure polling is enabled for Vercel/proxies
 });
 
 const PORT = process.env.PORT || 3001;
 const SECRET_KEY = "akatech-super-secret-key-change-in-prod";
 
 // --- Middleware ---
+app.use(compression());
 app.use(helmet());
-app.use(cors());
+app.use(
+  cors({
+    origin: true, // Reflect request origin
+    credentials: true,
+    methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
+  })
+);
+// Explicitly handle preflight for private network access
+app.options(/.*/, (req, res) => {
+  res.header("Access-Control-Allow-Private-Network", "true");
+  res.sendStatus(204);
+});
+app.use((req, res, next) => {
+  res.header("Access-Control-Allow-Private-Network", "true");
+  next();
+});
 app.use(bodyParser.json());
+
+// Response Time Logger
+app.use((req, res, next) => {
+  const start = Date.now();
+  res.on("finish", () => {
+    const duration = Date.now() - start;
+    // Log slow requests (> 500ms)
+    if (duration > 500) {
+      console.warn(
+        `[SLOW] ${req.method} ${req.originalUrl} took ${duration}ms`
+      );
+    }
+  });
+  next();
+});
 
 // Rate Limiter
 const limiter = rateLimit({
@@ -332,7 +367,9 @@ app.post("/api/auth/register", async (req, res) => {
 
 // 0.3 Get All Users (Admin)
 app.get("/api/users", authenticateToken, authorizeAdmin, async (req, res) => {
-  const users = await dal.getAllUsers();
+  const limit = parseInt(req.query.limit) || 50;
+  const offset = parseInt(req.query.offset) || 0;
+  const users = await dal.getAllUsers(limit, offset);
   const safeUsers = users.map(({ passwordHash, ...user }) => user);
   res.json(safeUsers);
 });
@@ -778,7 +815,9 @@ app.post("/api/login", async (req, res) => {
 
 // 3. Get Data (Admin Only)
 app.get("/api/messages", authenticateToken, async (req, res) => {
-  const messages = await dal.getAllMessages();
+  const limit = parseInt(req.query.limit) || 50;
+  const offset = parseInt(req.query.offset) || 0;
+  const messages = await dal.getAllMessages(limit, offset);
   const decryptedMessages = messages.map((msg) => ({
     ...msg,
     content: decrypt(msg.content),
@@ -787,7 +826,9 @@ app.get("/api/messages", authenticateToken, async (req, res) => {
 });
 
 app.get("/api/projects", authenticateToken, async (req, res) => {
-  const projects = await dal.getAllProjects();
+  const limit = parseInt(req.query.limit) || 50;
+  const offset = parseInt(req.query.offset) || 0;
+  const projects = await dal.getAllProjects(limit, offset);
   const decryptedProjects = projects.map((p) => ({
     ...p,
     notes: decrypt(p.notes),
@@ -796,7 +837,9 @@ app.get("/api/projects", authenticateToken, async (req, res) => {
 });
 
 app.get("/api/tickets", authenticateToken, authorizeAdmin, async (req, res) => {
-  const tickets = await dal.getAllTickets();
+  const limit = parseInt(req.query.limit) || 50;
+  const offset = parseInt(req.query.offset) || 0;
+  const tickets = await dal.getAllTickets(limit, offset);
   const decryptedTickets = tickets.map((t) => ({
     ...t,
     message: decrypt(t.message),
@@ -931,8 +974,10 @@ app.get("/api/subscriptions/export", authenticateToken, async (req, res) => {
 });
 
 app.get("/api/audit-logs", authenticateToken, async (req, res) => {
-  const logs = await dal.getAllAuditLogs();
-  res.json(logs.slice(0, 100)); // Last 100 logs (already reversed in DAL)
+  const limit = parseInt(req.query.limit) || 100;
+  const offset = parseInt(req.query.offset) || 0;
+  const logs = await dal.getAllAuditLogs(limit, offset);
+  res.json(logs); // Already limited/offset in DAL
 });
 
 // 9b. Get Client Notifications
@@ -1283,8 +1328,10 @@ app.get(
   authenticateToken,
   authorizeAdmin,
   async (req, res) => {
-    const notifications = await dal.getAllNotifications();
-    res.json(notifications.slice(0, 50));
+    const limit = parseInt(req.query.limit) || 50;
+    const offset = parseInt(req.query.offset) || 0;
+    const notifications = await dal.getAllNotifications(limit, offset);
+    res.json(notifications);
   }
 );
 
@@ -1305,6 +1352,10 @@ io.on("connection", (socket) => {
 });
 
 // --- Start Server ---
-server.listen(PORT, "0.0.0.0", () => {
-  console.log(`Server running on http://0.0.0.0:${PORT}`);
-});
+if (require.main === module) {
+  server.listen(PORT, "0.0.0.0", () => {
+    console.log(`Server running on http://0.0.0.0:${PORT}`);
+  });
+}
+
+module.exports = app;

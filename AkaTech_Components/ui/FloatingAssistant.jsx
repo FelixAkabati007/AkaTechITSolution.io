@@ -10,6 +10,15 @@ export const FloatingAssistant = () => {
   const [hasError, setHasError] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [isLoaded, setIsLoaded] = useState(false);
+  const [shouldLoadSpline, setShouldLoadSpline] = useState(false);
+
+  React.useEffect(() => {
+    // Delay Spline loading to prioritize LCP
+    const timer = setTimeout(() => {
+      setShouldLoadSpline(true);
+    }, 3000);
+    return () => clearTimeout(timer);
+  }, []);
 
   React.useEffect(() => {
     const checkMobile = () => {
@@ -91,7 +100,7 @@ export const FloatingAssistant = () => {
         <div className="absolute inset-0 bg-gradient-to-tr from-akatech-gold/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
 
         {/* Spline Viewer */}
-        {hasError || isMobile ? (
+        {hasError || isMobile || !shouldLoadSpline ? (
           <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-akatech-gold/10 to-akatech-gold/30 dark:from-akatech-gold/20 dark:to-akatech-gold/5 text-akatech-gold">
             <Icons.Bot size={32} />
           </div>

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Icons } from "@components/ui/Icons";
 import { AnimatePresence, motion } from "framer-motion";
+import { getApiUrl } from "@lib/config";
 
 export const AdminSupport = () => {
   const [tickets, setTickets] = useState([]);
@@ -11,7 +12,7 @@ export const AdminSupport = () => {
     const token = localStorage.getItem("adminToken");
     if (!token) return;
     try {
-      const res = await fetch("http://localhost:3001/api/tickets", {
+      const res = await fetch(`${getApiUrl()}/tickets`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (res.ok) setTickets(await res.json());
@@ -29,7 +30,7 @@ export const AdminSupport = () => {
   const handleUpdateStatus = async (id, newStatus) => {
     const token = localStorage.getItem("adminToken");
     try {
-      await fetch(`http://localhost:3001/api/tickets/${id}`, {
+      await fetch(`${getApiUrl()}/tickets/${id}`, {
         method: "PATCH",
         headers: {
           Authorization: `Bearer ${token}`,
@@ -48,17 +49,14 @@ export const AdminSupport = () => {
     if (!replyText || !selectedTicket) return;
     const token = localStorage.getItem("adminToken");
     try {
-      const res = await fetch(
-        `http://localhost:3001/api/tickets/${selectedTicket.id}`,
-        {
-          method: "PATCH",
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ response: replyText }),
-        }
-      );
+      const res = await fetch(`${getApiUrl()}/tickets/${selectedTicket.id}`, {
+        method: "PATCH",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ response: replyText }),
+      });
       if (res.ok) {
         setReplyText("");
         setSelectedTicket(null);

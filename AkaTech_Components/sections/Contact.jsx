@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { Icons } from "../ui/Icons";
 import { useToast } from "../ui/ToastProvider";
+import { getApiUrl } from "@lib/config";
 
 export const Contact = () => {
   const { addToast } = useToast();
@@ -50,16 +51,13 @@ export const Contact = () => {
 
     setLoading(true);
     try {
-      const response = await fetch(
-        "http://localhost:3001/api/client-messages",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(formData),
-        }
-      );
+      const response = await fetch(`${getApiUrl()}/client-messages`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(formData),
+      });
 
       const data = await response.json();
 

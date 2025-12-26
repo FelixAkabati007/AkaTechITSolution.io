@@ -107,7 +107,7 @@ describe("Contact Component", () => {
     });
 
     expect(global.fetch).toHaveBeenCalledWith(
-      "http://localhost:3001/api/client-messages",
+      expect.stringContaining("/api/client-messages"),
       expect.objectContaining({
         method: "POST",
         headers: { "Content-Type": "application/json" },

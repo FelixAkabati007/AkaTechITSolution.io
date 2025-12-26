@@ -16,6 +16,7 @@ import { CookieConsent } from "@components/ui/CookieConsent";
 import AdinkraBackground from "@components/ui/AdinkraBackground";
 import { useTheme } from "./hooks/useTheme";
 import { Analytics } from "@vercel/analytics/react";
+import { getApiUrl } from "@lib/config";
 
 // Lazy load pages
 const Dashboard = lazy(() =>
@@ -76,7 +77,7 @@ export default function App() {
   useEffect(() => {
     const token = localStorage.getItem("token");
     if (token) {
-      fetch("http://localhost:3001/api/auth/me", {
+      fetch(`${getApiUrl()}/auth/me`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -94,7 +95,7 @@ export default function App() {
   }, []);
 
   const handleLogin = (email, password) => {
-    return fetch("http://localhost:3001/api/login", {
+    return fetch(`${getApiUrl()}/login`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ username: email, password }),
@@ -112,6 +113,27 @@ export default function App() {
         setAuthModalOpen(false);
         // Correctly route to dashboard for both admin and client
         // The Dashboard component handles the inner routing based on role
+        setView("dashboard");
+      });
+  };
+
+  const handleRegister = (name, email, password) => {
+    return fetch(`${getApiUrl()}/signup`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name, email, password }),
+    })
+      .then((res) => {
+        if (!res.ok)
+          return res.json().then((err) => {
+            throw new Error(err.error || "Registration failed");
+          });
+        return res.json();
+      })
+      .then((data) => {
+        localStorage.setItem("token", data.token);
+        setUser(data.user);
+        setAuthModalOpen(false);
         setView("dashboard");
       });
   };
@@ -137,27 +159,31 @@ export default function App() {
     if (newView !== "plan-completion") setSelectedPlan(null);
   };
 
-  const handleGoogleLogin = (tokenResponse) => {
-    fetch("http://localhost:3001/api/signup/verify-google", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ token: tokenResponse.access_token }),
-    })
-      .then((res) => {
-        if (res.ok) return res.json();
-        throw new Error("Google auth failed");
-      })
-      .then((data) => {
-        localStorage.setItem("token", data.token);
-        setUser(data.user);
-        setAuthModalOpen(false);
-        setView("dashboard");
-      })
-      .catch((err) => {
-        console.error(err);
+  const handleGoogleLogin = async (tokenResponse) => {
+    try {
+      const res = await fetch(`${getApiUrl()}/signup/verify-google`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ token: tokenResponse.access_token }),
       });
+
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.error || "Google verification failed");
+      }
+
+      const data = await res.json();
+      localStorage.setItem("token", data.token);
+      setUser(data.user);
+      setAuthModalOpen(false);
+      setView("dashboard");
+      return data;
+    } catch (err) {
+      console.error("Google Login Error in App:", err);
+      throw err; // Re-throw to be caught by AuthModal
+    }
   };
 
   return (
@@ -169,7 +195,10 @@ export default function App() {
       language="en"
     >
       <div className={`min-h-screen ${mode} transition-colors duration-300`}>
-        <Analytics />
+        {/* Only run analytics in production and not on localhost */}
+        {typeof window !== "undefined" &&
+          !window.location.hostname.includes("localhost") &&
+          !window.location.hostname.includes("127.0.0.1") && <Analytics />}
         <ToastProvider>
           <div className="bg-white dark:bg-akatech-black text-gray-900 dark:text-white min-h-screen transition-colors duration-300">
             {/* <AdinkraBackground /> */}
@@ -263,6 +292,7 @@ export default function App() {
               isOpen={authModalOpen}
               onClose={() => setAuthModalOpen(false)}
               onLogin={handleLogin}
+              onRegister={handleRegister}
               onGoogleLogin={handleGoogleLogin}
             />
           </div>

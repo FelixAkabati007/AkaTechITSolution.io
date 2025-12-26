@@ -1,9 +1,12 @@
 // Test script for Subscription Management API
 // Run with: node test-subscriptions.js
 
+const path = require("path");
+require("dotenv").config({ path: path.join(__dirname, ".env") });
+
 const fetch = global.fetch; // Built-in in Node 18+
 
-const BASE_URL = "http://localhost:3001/api";
+const BASE_URL = process.env.VITE_API_URL || "http://localhost:3001/api";
 let token = "";
 let subId = "";
 

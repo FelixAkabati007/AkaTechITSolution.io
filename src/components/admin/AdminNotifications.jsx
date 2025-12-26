@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Icons } from "@components/ui/Icons";
 import { useToast } from "@components/ui/ToastProvider";
+import { getApiUrl } from "@lib/config";
 
 export const AdminNotifications = () => {
   const { addToast } = useToast();
@@ -22,7 +23,7 @@ export const AdminNotifications = () => {
   const fetchUsers = async () => {
     try {
       const token = localStorage.getItem("token");
-      const res = await fetch("http://localhost:3001/api/users", {
+      const res = await fetch(`${getApiUrl()}/users`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (res.ok) {
@@ -37,7 +38,7 @@ export const AdminNotifications = () => {
   const fetchHistory = async () => {
     try {
       const token = localStorage.getItem("token");
-      const res = await fetch("http://localhost:3001/api/notifications/history", {
+      const res = await fetch(`${getApiUrl()}/notifications/history`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (res.ok) {
@@ -55,7 +56,7 @@ export const AdminNotifications = () => {
 
     try {
       const token = localStorage.getItem("token");
-      const res = await fetch("http://localhost:3001/api/notifications/send", {
+      const res = await fetch(`${getApiUrl()}/notifications/send`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -129,7 +130,10 @@ export const AdminNotifications = () => {
               </label>
               <div className="flex gap-4">
                 {["info", "success", "warning", "error"].map((type) => (
-                  <label key={type} className="flex items-center gap-2 cursor-pointer">
+                  <label
+                    key={type}
+                    className="flex items-center gap-2 cursor-pointer"
+                  >
                     <input
                       type="radio"
                       name="type"
@@ -204,7 +208,7 @@ export const AdminNotifications = () => {
             <Icons.Clock className="w-5 h-5 text-gray-400" />
             Recent History
           </h3>
-          
+
           <div className="flex-1 overflow-y-auto space-y-4 pr-2">
             {history.length === 0 ? (
               <div className="h-full flex flex-col items-center justify-center text-gray-400">
@@ -221,12 +225,17 @@ export const AdminNotifications = () => {
                     <h4 className="font-bold text-gray-900 dark:text-white">
                       {item.title}
                     </h4>
-                    <span className={`text-xs px-2 py-1 rounded-full ${
-                      item.type === 'error' ? 'bg-red-100 text-red-600' :
-                      item.type === 'warning' ? 'bg-orange-100 text-orange-600' :
-                      item.type === 'success' ? 'bg-green-100 text-green-600' :
-                      'bg-blue-100 text-blue-600'
-                    }`}>
+                    <span
+                      className={`text-xs px-2 py-1 rounded-full ${
+                        item.type === "error"
+                          ? "bg-red-100 text-red-600"
+                          : item.type === "warning"
+                          ? "bg-orange-100 text-orange-600"
+                          : item.type === "success"
+                          ? "bg-green-100 text-green-600"
+                          : "bg-blue-100 text-blue-600"
+                      }`}
+                    >
                       {item.type}
                     </span>
                   </div>
@@ -236,11 +245,9 @@ export const AdminNotifications = () => {
                   <div className="flex justify-between items-center text-xs text-gray-400">
                     <span className="flex items-center gap-1">
                       <Icons.Users className="w-3 h-3" />
-                      {item.recipientId === 'all' ? 'Broadcast' : 'Single User'}
+                      {item.recipientId === "all" ? "Broadcast" : "Single User"}
                     </span>
-                    <span>
-                      {new Date(item.timestamp).toLocaleString()}
-                    </span>
+                    <span>{new Date(item.timestamp).toLocaleString()}</span>
                   </div>
                 </div>
               ))

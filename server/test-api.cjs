@@ -1,7 +1,7 @@
 const path = require("path");
 require("dotenv").config({ path: path.join(__dirname, "../.env") });
 
-const BASE_URL = "http://localhost:3001/api";
+const BASE_URL = process.env.VITE_API_URL || "http://localhost:3001/api";
 
 async function testApi() {
   console.log("Starting API Tests...");

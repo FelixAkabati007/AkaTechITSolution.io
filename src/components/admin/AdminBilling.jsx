@@ -4,6 +4,7 @@ import { mockService } from "@lib/mockData";
 import { io } from "socket.io-client";
 import { useToast } from "@components/ui/ToastProvider";
 import { jsPDF } from "jspdf";
+import { getApiUrl, getSocketUrl } from "@lib/config";
 
 export const AdminBilling = () => {
   const { addToast } = useToast();
@@ -23,7 +24,7 @@ export const AdminBilling = () => {
   const fetchInvoices = async () => {
     try {
       const token = localStorage.getItem("token");
-      const res = await fetch("http://localhost:3001/api/admin/invoices", {
+      const res = await fetch(`${getApiUrl()}/admin/invoices`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (res.ok) {
@@ -59,7 +60,7 @@ export const AdminBilling = () => {
     fetchInvoices();
     setProjects(mockService.getProjects());
 
-    const socket = io("http://localhost:3001");
+    const socket = io(getSocketUrl());
     socket.on("new_invoice_request", (newInv) => {
       addToast(`New invoice request from ${newInv.user.name}`, "info");
       fetchInvoices(); // Refresh list
@@ -86,8 +87,8 @@ export const AdminBilling = () => {
     e.preventDefault();
     const token = localStorage.getItem("token");
     const url = isEditMode
-      ? `http://localhost:3001/api/admin/invoices/${editingId}`
-      : "http://localhost:3001/api/admin/invoices";
+      ? `${getApiUrl()}/admin/invoices/${editingId}`
+      : `${getApiUrl()}/admin/invoices`;
     const method = isEditMode ? "PATCH" : "POST";
 
     try {
@@ -125,13 +126,10 @@ export const AdminBilling = () => {
       return;
     const token = localStorage.getItem("token");
     try {
-      const res = await fetch(
-        `http://localhost:3001/api/admin/invoices/${uuid}`,
-        {
-          method: "DELETE",
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      );
+      const res = await fetch(`${getApiUrl()}/admin/invoices/${uuid}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      });
       if (res.ok) {
         addToast("Invoice deleted", "success");
         fetchInvoices();
@@ -159,19 +157,125 @@ export const AdminBilling = () => {
   const handleDownloadInvoice = (invoice) => {
     try {
       const doc = new jsPDF();
-      doc.setFontSize(20);
-      doc.text("AkaTech IT Solutions", 10, 20);
-      doc.setFontSize(14);
-      doc.text("INVOICE", 10, 40);
-      doc.setFontSize(12);
-      doc.text(`Invoice ID: ${invoice.id}`, 10, 50);
-      doc.text(`Date: ${invoice.date}`, 10, 60);
-      doc.text(`Due Date: ${invoice.dueDate}`, 10, 70);
-      const project = getProjectTitle(invoice);
-      doc.text(`Project: ${project}`, 10, 80);
-      doc.text(`Amount: GH₵ ${invoice.amount.toFixed(2)}`, 10, 100);
-      doc.text(`Status: ${invoice.status}`, 10, 110);
-      doc.save(`Invoice-${invoice.id}.pdf`);
+      const pageWidth = doc.internal.pageSize.getWidth();
+      const margin = 25.4; // 1 inch in mm
+
+      const logoUrl = "/logo.png";
+      const img = new Image();
+      img.src = logoUrl;
+
+      const generatePDF = (withLogo = false) => {
+        try {
+          let y = 20; // Top margin
+
+          // Logo
+          if (withLogo) {
+            const logoHeight = 21; // ~80px height
+            const logoWidth = (img.width / img.height) * logoHeight;
+            const logoX = (pageWidth - logoWidth) / 2;
+            doc.addImage(img, "PNG", logoX, y, logoWidth, logoHeight);
+            y += logoHeight + 15;
+          } else {
+            y += 20;
+          }
+
+          // Company Name
+          doc.setFontSize(10);
+          doc.setTextColor(50, 50, 50);
+          doc.text("AkaTech IT Solutions", margin, y);
+
+          // INVOICE Title
+          doc.setFontSize(24);
+          doc.setTextColor(197, 160, 89); // Akatech Gold
+          doc.setFont("helvetica", "bold");
+          doc.text("INVOICE", pageWidth - margin, y, { align: "right" });
+
+          y += 10;
+
+          // Divider
+          doc.setDrawColor(200, 200, 200);
+          doc.setLineWidth(0.5);
+          doc.line(margin, y, pageWidth - margin, y);
+          y += 10;
+
+          // Invoice Details
+          doc.setFontSize(10);
+          doc.setFont("helvetica", "normal");
+          doc.setTextColor(0, 0, 0);
+
+          const rightColX = pageWidth - margin - 40;
+
+          // Left Column (Bill To)
+          doc.text("Bill To:", margin, y);
+          doc.setFont("helvetica", "bold");
+          doc.text(getProjectTitle(invoice), margin, y + 5);
+          doc.setFont("helvetica", "normal");
+
+          // Right Column (Invoice Meta)
+          doc.text("Invoice ID:", rightColX, y);
+          doc.text(invoice.id, pageWidth - margin, y, { align: "right" });
+
+          doc.text("Date:", rightColX, y + 5);
+          doc.text(invoice.date, pageWidth - margin, y + 5, { align: "right" });
+
+          doc.text("Due Date:", rightColX, y + 10);
+          doc.text(invoice.dueDate, pageWidth - margin, y + 10, {
+            align: "right",
+          });
+
+          y += 25;
+
+          // Table Header
+          doc.setFillColor(245, 245, 245);
+          doc.rect(margin, y, pageWidth - margin * 2, 8, "F");
+          doc.setFont("helvetica", "bold");
+          doc.text("Description", margin + 2, y + 5);
+          doc.text("Amount", pageWidth - margin - 2, y + 5, { align: "right" });
+
+          y += 15;
+
+          // Table Row
+          doc.setFont("helvetica", "normal");
+          doc.text(invoice.description || "Project Services", margin + 2, y);
+          doc.text(
+            `GH₵ ${invoice.amount.toFixed(2)}`,
+            pageWidth - margin - 2,
+            y,
+            { align: "right" }
+          );
+
+          y += 10;
+          doc.line(margin, y, pageWidth - margin, y);
+
+          y += 10;
+
+          // Total
+          doc.setFontSize(12);
+          doc.setFont("helvetica", "bold");
+          doc.text("Total:", pageWidth - margin - 40, y);
+          doc.setTextColor(197, 160, 89);
+          doc.text(
+            `GH₵ ${invoice.amount.toFixed(2)}`,
+            pageWidth - margin - 2,
+            y,
+            { align: "right" }
+          );
+
+          // Status Badge (Simple Text for PDF)
+          y += 15;
+          doc.setFontSize(10);
+          doc.setTextColor(100, 100, 100);
+          doc.text(`Status: ${invoice.status}`, margin, y);
+
+          doc.save(`Invoice-${invoice.id}.pdf`);
+        } catch (err) {
+          console.error(err);
+          addToast("Error generating PDF content", "error");
+        }
+      };
+
+      img.onload = () => generatePDF(true);
+      img.onerror = () => generatePDF(false);
     } catch (error) {
       console.error("Error generating PDF:", error);
       addToast("Failed to generate PDF", "error");

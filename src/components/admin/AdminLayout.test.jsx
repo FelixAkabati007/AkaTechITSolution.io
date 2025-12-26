@@ -30,6 +30,9 @@ vi.mock("./AdminSettings", () => ({
 vi.mock("./AdminProfile", () => ({
   AdminProfile: () => <div>Profile Component</div>,
 }));
+vi.mock("./AdminNotifications", () => ({
+  AdminNotifications: () => <div>Notifications Component</div>,
+}));
 
 // Mock Icons
 vi.mock("@components/ui/Icons", () => ({
@@ -39,6 +42,7 @@ vi.mock("@components/ui/Icons", () => ({
     Users: () => <span>UsersIcon</span>,
     Briefcase: () => <span>BriefcaseIcon</span>,
     CreditCard: () => <span>CreditCardIcon</span>,
+    Bell: () => <span>BellIcon</span>,
     LifeBuoy: () => <span>LifeBuoyIcon</span>,
     Settings: () => <span>SettingsIcon</span>,
     LogOut: () => <span>LogOutIcon</span>,
@@ -51,6 +55,29 @@ vi.mock("@components/ui/Icons", () => ({
 
 // Mock Logo
 vi.mock("@components/ui/Logo", () => ({ Logo: () => <span>Logo</span> }));
+
+// Mock config
+vi.mock("@lib/config", () => ({
+  getApiUrl: () => "http://test-api.com",
+}));
+
+// Mock framer-motion
+vi.mock("framer-motion", () => ({
+  motion: {
+    div: ({ children, ...props }) => <div {...props}>{children}</div>,
+    aside: ({ children, ...props }) => <aside {...props}>{children}</aside>,
+    span: ({ children, ...props }) => <span {...props}>{children}</span>,
+  },
+  AnimatePresence: ({ children }) => <>{children}</>,
+}));
+
+// Mock fetch
+global.fetch = vi.fn(() =>
+  Promise.resolve({
+    ok: true,
+    json: () => Promise.resolve({ token: "test-token" }),
+  })
+);
 
 describe("AdminLayout", () => {
   const mockUser = {

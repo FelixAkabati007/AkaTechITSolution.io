@@ -3,6 +3,7 @@ import { Icons } from "@components/ui/Icons";
 import { mockService } from "@lib/mockData";
 import { jsPDF } from "jspdf";
 import { useToast } from "@components/ui/ToastProvider";
+import { getApiUrl } from "@lib/config";
 
 export const ClientBilling = ({ user }) => {
   const { addToast } = useToast();
@@ -34,8 +35,10 @@ export const ClientBilling = ({ user }) => {
         const headers = { Authorization: `Bearer ${token}` };
 
         const [invRes, projRes] = await Promise.all([
-          fetch("/api/client/invoices", { headers }),
-          fetch(`/api/client/projects?email=${user.email}`, { headers }),
+          fetch(`${getApiUrl()}/client/invoices`, { headers }),
+          fetch(`${getApiUrl()}/client/projects?email=${user.email}`, {
+            headers,
+          }),
         ]);
 
         if (invRes.ok) {
@@ -148,7 +151,7 @@ export const ClientBilling = ({ user }) => {
 
     try {
       const token = localStorage.getItem("token");
-      const res = await fetch("/api/invoices/request", {
+      const res = await fetch(`${getApiUrl()}/client/invoices/request`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

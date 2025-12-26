@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { io } from "socket.io-client";
 import { Icons } from "@components/ui/Icons";
 import { Avatar } from "@components/ui/Avatar";
+import { getApiUrl, getSocketUrl } from "@lib/config";
 import { ClientDashboard } from "./ClientDashboard";
 import { ClientProjects } from "./ClientProjects";
 import { ClientBilling } from "./ClientBilling";
@@ -26,7 +27,7 @@ export const ClientLayout = ({ user, onLogout, onUserUpdate }) => {
     const fetchNotifications = async () => {
       try {
         const token = localStorage.getItem("token");
-        const res = await fetch("http://localhost:3001/api/notifications", {
+        const res = await fetch(`${getApiUrl()}/notifications`, {
           headers: { Authorization: `Bearer ${token}` },
         });
 
@@ -46,7 +47,7 @@ export const ClientLayout = ({ user, onLogout, onUserUpdate }) => {
     fetchNotifications();
 
     // Setup socket listener for real-time notifications
-    const socket = io("http://localhost:3001", {
+    const socket = io(getSocketUrl(), {
       transports: ["websocket", "polling"],
       withCredentials: true,
       reconnectionAttempts: 5,
@@ -79,7 +80,7 @@ export const ClientLayout = ({ user, onLogout, onUserUpdate }) => {
   const markAsRead = async (id) => {
     try {
       const token = localStorage.getItem("token");
-      await fetch(`http://localhost:3001/api/notifications/${id}/read`, {
+      await fetch(`${getApiUrl()}/notifications/${id}/read`, {
         method: "PATCH",
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -96,13 +97,10 @@ export const ClientLayout = ({ user, onLogout, onUserUpdate }) => {
     setIsMarkingAll(true);
     try {
       const token = localStorage.getItem("token");
-      const res = await fetch(
-        "http://localhost:3001/api/notifications/read-all",
-        {
-          method: "PATCH",
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      );
+      const res = await fetch(`${getApiUrl()}/notifications/read-all`, {
+        method: "PATCH",
+        headers: { Authorization: `Bearer ${token}` },
+      });
 
       if (!res.ok) throw new Error("Failed to mark all read");
 

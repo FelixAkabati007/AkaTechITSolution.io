@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from "react";
 import { Icons } from "@components/ui/Icons";
 import { PRICING_PACKAGES } from "../../lib/data";
+import { getApiUrl } from "@lib/config";
 
-const API_URL = "http://localhost:3001/api";
+const API_URL = getApiUrl();
 
 export const AdminSubscriptions = () => {
   const [subscriptions, setSubscriptions] = useState([]);

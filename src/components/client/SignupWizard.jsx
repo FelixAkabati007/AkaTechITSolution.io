@@ -3,8 +3,9 @@ import { motion, AnimatePresence } from "framer-motion";
 import { GoogleLogin } from "@react-oauth/google";
 import { Icons } from "../ui/Icons";
 import { PRICING_PACKAGES } from "../../lib/data";
+import { getApiUrl } from "@lib/config";
 
-const API_URL = "http://localhost:3001/api";
+const API_URL = getApiUrl();
 
 const StepPackageSelection = ({ selectedPackage, onSelect }) => {
   return (

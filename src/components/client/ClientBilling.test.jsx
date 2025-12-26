@@ -1,5 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent, act } from "@testing-library/react";
+import {
+  render,
+  screen,
+  fireEvent,
+  act,
+  waitFor,
+} from "@testing-library/react";
 import { ClientBilling } from "./ClientBilling";
 import { mockService } from "@lib/mockData";
 import { jsPDF } from "jspdf";
@@ -32,6 +38,11 @@ vi.mock("@lib/mockData", () => ({
   },
 }));
 
+// Mock Config
+vi.mock("@lib/config", () => ({
+  getApiUrl: () => "http://localhost:3000/api",
+}));
+
 // Mock jsPDF
 vi.mock("jspdf", () => {
   return {
@@ -47,6 +58,7 @@ describe("ClientBilling", () => {
   const mockUser = {
     id: 1,
     name: "Test User",
+    email: "test@example.com",
   };
 
   const mockInvoices = [
@@ -72,25 +84,35 @@ describe("ClientBilling", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.useRealTimers(); // Ensure real timers by default
     mockService.getInvoices.mockReturnValue(mockInvoices);
     mockService.getProjects.mockReturnValue(mockProjects);
     global.alert = vi.fn();
     global.console.error = vi.fn();
+
+    // Mock fetch to fail by default so it falls back to mockService
+    global.fetch = vi.fn(() => Promise.reject("API Offline"));
   });
 
-  it("renders the invoice list", () => {
+  it("renders the invoice list", async () => {
     render(<ClientBilling user={mockUser} />);
-    expect(screen.getByText("INV-001")).toBeDefined();
+
+    await waitFor(() => {
+      expect(screen.getByText("INV-001")).toBeDefined();
+    });
+
     expect(screen.getAllByText("Test Project").length).toBeGreaterThan(0);
     expect(screen.getAllByText("GH₵ 1000.00").length).toBeGreaterThan(0);
     expect(screen.getAllByText("Unpaid").length).toBeGreaterThan(0);
   });
 
-  it("filters invoices by status", () => {
+  it("filters invoices by status", async () => {
     render(<ClientBilling user={mockUser} />);
 
-    // Initially shows all
-    expect(screen.getByText("INV-001")).toBeInTheDocument();
+    // Wait for data to load
+    await waitFor(() => {
+      expect(screen.getByText("INV-001")).toBeInTheDocument();
+    });
     expect(screen.getByText("INV-002")).toBeInTheDocument();
 
     // Click "Paid" filter
@@ -100,8 +122,12 @@ describe("ClientBilling", () => {
     expect(screen.getByText("INV-002")).toBeInTheDocument();
   });
 
-  it("opens payment modal when Pay Now is clicked", () => {
+  it("opens payment modal when Pay Now is clicked", async () => {
     render(<ClientBilling user={mockUser} />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Pay Now")).toBeInTheDocument();
+    });
 
     // Find Pay Now button for Unpaid invoice
     const payButton = screen.getByText("Pay Now");
@@ -112,9 +138,12 @@ describe("ClientBilling", () => {
     expect(screen.getAllByText("GH₵ 1000.00").length).toBeGreaterThan(0);
   });
 
-  it("processes payment successfully", () => {
-    vi.useFakeTimers();
+  it("processes payment successfully", async () => {
     render(<ClientBilling user={mockUser} />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Pay Now")).toBeInTheDocument();
+    });
 
     fireEvent.click(screen.getByText("Pay Now"));
 
@@ -136,19 +165,23 @@ describe("ClientBilling", () => {
     // Should show loading state
     expect(screen.getByText("Processing...")).toBeInTheDocument();
 
-    // Fast forward time
-    act(() => {
-      vi.runAllTimers();
-    });
-
-    expect(global.alert).toHaveBeenCalledWith("Payment successful!");
-
-    vi.useRealTimers();
+    // Wait for real timeout (2000ms + buffer)
+    await waitFor(
+      () => {
+        expect(global.alert).toHaveBeenCalledWith("Payment successful!");
+      },
+      { timeout: 3000 }
+    );
   });
 
-  it("triggers download when Download button is clicked", () => {
-    vi.useFakeTimers();
+  it("triggers download when Download button is clicked", async () => {
     render(<ClientBilling user={mockUser} />);
+
+    await waitFor(() => {
+      expect(
+        screen.getAllByLabelText("Download invoice").length
+      ).toBeGreaterThan(0);
+    });
 
     // Get all download buttons (should be 2)
     const downloadButtons = screen.getAllByLabelText("Download invoice");
@@ -159,55 +192,56 @@ describe("ClientBilling", () => {
     // Expect loading state immediately
     expect(downloadButton).toBeDisabled();
 
-    // Run timers to trigger the PDF generation
-    act(() => {
-      vi.runAllTimers();
-    });
+    // Wait for real timeout (100ms in component)
+    await waitFor(
+      () => {
+        expect(jsPDF).toHaveBeenCalled();
+      },
+      { timeout: 1000 }
+    );
 
-    expect(jsPDF).toHaveBeenCalled();
     expect(downloadButton).not.toBeDisabled();
-
-    vi.useRealTimers();
   });
 
   it("handles invoice request flow correctly", async () => {
     // Setup fetch mock
     global.fetch = vi.fn((url) => {
-        if (url.includes("/api/invoices/request")) {
-            return Promise.resolve({
-                ok: true,
-                json: () => Promise.resolve({ 
-                    message: "Success", 
-                    invoice: { 
-                        id: "INV-NEW", 
-                        referenceNumber: "REQ-NEW",
-                        projectId: 101, 
-                        amount: 0, 
-                        status: "requested", 
-                        createdAt: new Date().toISOString(),
-                        description: "Test Description"
-                    } 
-                })
-            });
-        }
-        if (url.includes("/api/client/projects")) {
-             return Promise.resolve({
-                ok: true,
-                json: () => Promise.resolve(mockProjects)
-             });
-        }
-        if (url.includes("/api/client/invoices")) {
-             return Promise.resolve({
-                ok: true,
-                json: () => Promise.resolve([])
-             });
-        }
-        return Promise.reject("Unknown URL");
+      if (url.includes("/invoices/request")) {
+        return Promise.resolve({
+          ok: true,
+          json: () =>
+            Promise.resolve({
+              message: "Success",
+              invoice: {
+                id: "INV-NEW",
+                referenceNumber: "REQ-NEW",
+                projectId: 101,
+                amount: 0,
+                status: "requested",
+                createdAt: new Date().toISOString(),
+                description: "Test Description",
+              },
+            }),
+        });
+      }
+      if (url.includes("/client/projects")) {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve(mockProjects),
+        });
+      }
+      if (url.includes("/client/invoices")) {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve([]),
+        });
+      }
+      return Promise.reject("Unknown URL: " + url);
     });
 
     vi.useFakeTimers();
     render(<ClientBilling user={mockUser} />);
-    
+
     // Wait for projects to load (useEffect)
     await act(async () => {});
 
@@ -229,7 +263,10 @@ describe("ClientBilling", () => {
     const submitButton = screen.getByText("Submit Request");
     fireEvent.click(submitButton);
     // Fetch should NOT be called
-    expect(global.fetch).not.toHaveBeenCalledWith(expect.stringContaining("/api/invoices/request"), expect.any(Object));
+    expect(global.fetch).not.toHaveBeenCalledWith(
+      expect.stringContaining("/invoices/request"),
+      expect.any(Object)
+    );
 
     // 4. Fill form
     // Select Project
@@ -253,16 +290,18 @@ describe("ClientBilling", () => {
     // In real fetch, we await. In mock, it resolves immediately.
     await act(async () => {});
 
-    expect(global.fetch).toHaveBeenCalledWith("/api/invoices/request", expect.objectContaining({
+    expect(global.fetch).toHaveBeenCalledWith(
+      expect.stringContaining("/invoices/request"),
+      expect.objectContaining({
         method: "POST",
         body: JSON.stringify({
-            subject: "Invoice Request",
-            message: "I need a new invoice for project X",
-            projectId: "101"
-        })
-    }));
+          subject: "Invoice Request",
+          message: "I need a new invoice for project X",
+          projectId: "101",
+        }),
+      })
+    );
 
     vi.useRealTimers();
   });
 });
-

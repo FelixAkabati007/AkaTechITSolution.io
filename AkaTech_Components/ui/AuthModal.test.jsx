@@ -1,29 +1,40 @@
-import { render, screen, fireEvent } from "@testing-library/react";
-import { describe, it, expect, vi } from "vitest";
+import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 import { AuthModal } from "./AuthModal";
 
 // Mock dependencies
-vi.mock("./Icons", () => ({
+vi.mock("@components/ui/Icons", () => ({
   Icons: {
     X: () => <span data-testid="icon-x">X</span>,
     Google: () => <span data-testid="icon-google">Google</span>,
   },
 }));
 
-vi.mock("./Logo", () => ({
+vi.mock("@components/ui/Logo", () => ({
   Logo: () => <span data-testid="logo">Logo</span>,
 }));
 
-vi.mock("./ToastProvider", () => ({
+const mockAddToast = vi.fn();
+vi.mock("@components/ui/ToastProvider", () => ({
   useToast: () => ({
-    addToast: vi.fn(),
+    addToast: mockAddToast,
   }),
+}));
+
+const mockGoogleLogin = vi.fn();
+vi.mock("@react-oauth/google", () => ({
+  useGoogleLogin: ({ onSuccess, onError }) => {
+    return () => {
+      mockGoogleLogin(onSuccess, onError);
+    };
+  },
 }));
 
 describe("AuthModal Component", () => {
   const mockOnClose = vi.fn();
   const mockOnLogin = vi.fn();
   const mockOnSignup = vi.fn();
+  const mockOnGoogleLogin = vi.fn();
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -62,7 +73,7 @@ describe("AuthModal Component", () => {
         onSignup={mockOnSignup}
       />
     );
-    
+
     // The backdrop is the outer div with role="dialog"
     const backdrop = screen.getByRole("dialog");
     fireEvent.click(backdrop);
@@ -78,7 +89,7 @@ describe("AuthModal Component", () => {
         onSignup={mockOnSignup}
       />
     );
-    
+
     // Click on the heading
     const heading = screen.getByText("Welcome Back");
     fireEvent.click(heading);
@@ -94,7 +105,7 @@ describe("AuthModal Component", () => {
         onSignup={mockOnSignup}
       />
     );
-    
+
     const input = screen.getByPlaceholderText("name@company.com");
     fireEvent.click(input);
     expect(mockOnClose).not.toHaveBeenCalled();
@@ -109,7 +120,7 @@ describe("AuthModal Component", () => {
         onSignup={mockOnSignup}
       />
     );
-    
+
     const button = screen.getByText("Sign In");
     fireEvent.click(button);
     expect(mockOnClose).not.toHaveBeenCalled();
@@ -124,7 +135,7 @@ describe("AuthModal Component", () => {
         onSignup={mockOnSignup}
       />
     );
-    
+
     const label = screen.getByText("Email Address");
     fireEvent.click(label);
     expect(mockOnClose).not.toHaveBeenCalled();
@@ -139,8 +150,95 @@ describe("AuthModal Component", () => {
         onSignup={mockOnSignup}
       />
     );
-    
+
     fireEvent.keyDown(document, { key: "Escape" });
     expect(mockOnClose).toHaveBeenCalled();
+  });
+
+  it("handles Google login success", async () => {
+    mockGoogleLogin.mockImplementation((onSuccess) => {
+      onSuccess({ access_token: "test-token" });
+    });
+
+    render(
+      <AuthModal
+        isOpen={true}
+        onClose={mockOnClose}
+        onLogin={mockOnLogin}
+        onSignup={mockOnSignup}
+        onGoogleLogin={mockOnGoogleLogin}
+      />
+    );
+
+    const googleBtn = screen.getByText("Sign in with Google").closest("button");
+    fireEvent.click(googleBtn);
+
+    await waitFor(() => {
+      expect(mockOnGoogleLogin).toHaveBeenCalledWith({
+        access_token: "test-token",
+      });
+      expect(mockAddToast).toHaveBeenCalledWith(
+        "Signed in with Google",
+        "success"
+      );
+    });
+  });
+
+  it("handles Google login error", async () => {
+    mockGoogleLogin.mockImplementation((_, onError) => {
+      onError({ error: "popup_closed_by_user" });
+    });
+
+    render(
+      <AuthModal
+        isOpen={true}
+        onClose={mockOnClose}
+        onLogin={mockOnLogin}
+        onSignup={mockOnSignup}
+        onGoogleLogin={mockOnGoogleLogin}
+      />
+    );
+
+    const googleBtn = screen.getByText("Sign in with Google").closest("button");
+    fireEvent.click(googleBtn);
+
+    await waitFor(() => {
+      expect(mockAddToast).toHaveBeenCalledWith(
+        "Google Sign In Failed. Please try again.",
+        "error"
+      );
+    });
+  });
+
+  it("handles Google login backend verification error", async () => {
+    // Mock successful Google auth but failed backend verification
+    mockGoogleLogin.mockImplementation((onSuccess) => {
+      onSuccess({ access_token: "test-token" });
+    });
+
+    mockOnGoogleLogin.mockRejectedValue(new Error("Verification failed"));
+
+    render(
+      <AuthModal
+        isOpen={true}
+        onClose={mockOnClose}
+        onLogin={mockOnLogin}
+        onSignup={mockOnSignup}
+        onGoogleLogin={mockOnGoogleLogin}
+      />
+    );
+
+    const googleBtn = screen.getByText("Sign in with Google").closest("button");
+    fireEvent.click(googleBtn);
+
+    // Should show loading state
+    expect(screen.getByText("Connecting...")).toBeInTheDocument();
+
+    await waitFor(() => {
+      expect(mockAddToast).toHaveBeenCalledWith("Verification failed", "error");
+    });
+
+    // Should return to normal state
+    expect(screen.getByText("Sign in with Google")).toBeInTheDocument();
   });
 });

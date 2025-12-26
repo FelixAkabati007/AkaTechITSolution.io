@@ -8,7 +8,52 @@ vi.mock("@components/ui/Icons", () => ({
   Icons: {
     Plus: () => <span>PlusIcon</span>,
     Download: () => <span>DownloadIcon</span>,
+    Edit: () => <span>EditIcon</span>,
+    Trash: () => <span>TrashIcon</span>,
   },
+}));
+
+// Mock config
+vi.mock("@lib/config", () => ({
+  getApiUrl: () => "http://test-api.com",
+  getSocketUrl: () => "http://test-socket.com",
+}));
+
+// Mock socket.io-client
+vi.mock("socket.io-client", () => ({
+  io: vi.fn(() => ({
+    on: vi.fn(),
+    disconnect: vi.fn(),
+  })),
+}));
+
+// Mock ToastProvider
+vi.mock("@components/ui/ToastProvider", () => ({
+  useToast: () => ({
+    addToast: vi.fn(),
+  }),
+}));
+
+// Mock jspdf
+vi.mock("jspdf", () => ({
+  jsPDF: vi.fn(() => ({
+    internal: {
+      pageSize: {
+        getWidth: () => 210,
+      },
+    },
+    addImage: vi.fn(),
+    setFontSize: vi.fn(),
+    setTextColor: vi.fn(),
+    setFont: vi.fn(),
+    text: vi.fn(),
+    setDrawColor: vi.fn(),
+    setLineWidth: vi.fn(),
+    line: vi.fn(),
+    setFillColor: vi.fn(),
+    rect: vi.fn(),
+    save: vi.fn(),
+  })),
 }));
 
 // Mock Service
@@ -19,6 +64,14 @@ vi.mock("@lib/mockData", () => ({
     saveInvoice: vi.fn(),
   },
 }));
+
+// Mock fetch
+global.fetch = vi.fn(() =>
+  Promise.resolve({
+    ok: true,
+    json: () => Promise.resolve([]),
+  })
+);
 
 describe("AdminBilling", () => {
   const mockProjects = [

@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { Icons } from "@components/ui/Icons";
+import { getApiUrl } from "@lib/config";
 
 export const ClientDashboard = ({ user, setActiveTab }) => {
   const [stats, setStats] = useState({
@@ -17,12 +18,12 @@ export const ClientDashboard = ({ user, setActiveTab }) => {
       try {
         const [projRes, tickRes] = await Promise.all([
           fetch(
-            `http://localhost:3001/api/client/projects?email=${encodeURIComponent(
+            `${getApiUrl()}/client/projects?email=${encodeURIComponent(
               user.email
             )}`
           ),
           fetch(
-            `http://localhost:3001/api/client/tickets?email=${encodeURIComponent(
+            `${getApiUrl()}/client/tickets?email=${encodeURIComponent(
               user.email
             )}`
           ),

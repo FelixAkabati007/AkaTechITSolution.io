@@ -3,9 +3,10 @@ import { Icons } from "../../components/ui/Icons";
 import { AnimatePresence, motion } from "framer-motion";
 import { format } from "date-fns";
 import { io } from "socket.io-client";
+import { getApiUrl, getSocketUrl } from "@lib/config";
 
 // --- API Helper ---
-const API_URL = "http://localhost:3001/api";
+const API_URL = getApiUrl();
 
 /**
  * AdminMessages Component
@@ -142,7 +143,7 @@ export const AdminMessages = () => {
 
   // --- Real-time Sync ---
   useEffect(() => {
-    const socket = io("http://localhost:3001");
+    const socket = io(getSocketUrl());
 
     socket.on("connect", () => console.log("Socket connected"));
 

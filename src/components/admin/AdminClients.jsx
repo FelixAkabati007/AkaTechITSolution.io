@@ -3,6 +3,7 @@ import { Icons } from "@components/ui/Icons";
 import { mockService } from "@lib/mockData";
 import { useToast } from "@components/ui/ToastProvider";
 import { io } from "socket.io-client";
+import { getApiUrl, getSocketUrl } from "@lib/config";
 
 export const AdminClients = () => {
   const [users, setUsers] = useState([]);
@@ -20,7 +21,7 @@ export const AdminClients = () => {
       const token = localStorage.getItem("token");
       if (!token) return;
 
-      const res = await fetch("http://localhost:3001/api/users", {
+      const res = await fetch(`${getApiUrl()}/users`, {
         headers: { Authorization: `Bearer ${token}` },
       });
 
@@ -43,7 +44,7 @@ export const AdminClients = () => {
   }, [fetchUsers]);
 
   useEffect(() => {
-    const socket = io("http://localhost:3001");
+    const socket = io(getSocketUrl());
 
     socket.on("user_registered", (registeredUser) => {
       setUsers((prevUsers) => {
@@ -76,7 +77,7 @@ export const AdminClients = () => {
     }
 
     try {
-      const res = await fetch("http://localhost:3001/api/auth/register", {
+      const res = await fetch(`${getApiUrl()}/auth/register`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ...newUser, accountType: "manual" }),

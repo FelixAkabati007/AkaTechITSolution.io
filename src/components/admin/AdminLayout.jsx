@@ -2,6 +2,7 @@ import React, { useState, Suspense } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Icons } from "@components/ui/Icons";
 import { Logo } from "@components/ui/Logo";
+import { getApiUrl } from "@lib/config";
 
 import { AdminDashboard } from "./AdminDashboard";
 import { AdminClients } from "./AdminClients";
@@ -23,7 +24,7 @@ export const AdminLayout = ({ user, onLogout }) => {
   React.useEffect(() => {
     const loginAdmin = async () => {
       try {
-        const res = await fetch("http://localhost:3001/api/login", {
+        const res = await fetch(`${getApiUrl()}/login`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ username: "admin", password: "admin123" }),

@@ -22,6 +22,20 @@ vi.mock("@lib/mockData", () => ({
   },
 }));
 
+// Mock config
+vi.mock("@lib/config", () => ({
+  getApiUrl: () => "http://test-api.com",
+  getSocketUrl: () => "http://test-socket.com",
+}));
+
+// Mock socket.io-client
+vi.mock("socket.io-client", () => ({
+  io: vi.fn(() => ({
+    on: vi.fn(),
+    disconnect: vi.fn(),
+  })),
+}));
+
 // Mock Toast
 const mockAddToast = vi.fn();
 vi.mock("@components/ui/ToastProvider", () => ({
@@ -58,7 +72,7 @@ describe("AdminClients", () => {
 
     // Default fetch mock to return users
     global.fetch.mockImplementation((url) => {
-      if (url.includes("/api/users")) {
+      if (url.includes("/users")) {
         return Promise.resolve({
           ok: true,
           json: () => Promise.resolve(mockUsers),
@@ -124,14 +138,14 @@ describe("AdminClients", () => {
     });
 
     // Mock register API response
-    global.fetch.mockImplementationOnce((url) => {
-      if (url.includes("/api/users")) {
+    global.fetch.mockImplementation((url) => {
+      if (url.includes("/users")) {
         return Promise.resolve({
           ok: true,
           json: () => Promise.resolve(mockUsers),
         });
       }
-      if (url.includes("/api/auth/register")) {
+      if (url.includes("/auth/register")) {
         return Promise.resolve({
           ok: true,
           json: () => Promise.resolve({ user: { id: 3, name: "New User" } }),
@@ -144,7 +158,7 @@ describe("AdminClients", () => {
 
     await waitFor(() => {
       expect(global.fetch).toHaveBeenCalledWith(
-        expect.stringContaining("/api/auth/register"),
+        expect.stringContaining("/auth/register"),
         expect.objectContaining({
           method: "POST",
           body: JSON.stringify({
@@ -152,6 +166,7 @@ describe("AdminClients", () => {
             email: "new@example.com",
             password: "password123",
             role: "client",
+            accountType: "manual",
           }),
         })
       );
