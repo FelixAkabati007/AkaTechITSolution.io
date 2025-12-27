@@ -29,6 +29,7 @@ import {
   User,
   ChevronLeft,
   ChevronRight,
+  ChevronDown,
   Bell,
   Clock,
   Download,
@@ -51,6 +52,7 @@ import {
   Folder,
   AlertTriangle,
   ArrowUp,
+  ArrowDown,
   Edit,
   Trash2,
 } from "lucide-react";
@@ -88,6 +90,7 @@ export const Icons = {
   User,
   ChevronLeft,
   ChevronRight,
+  ChevronDown,
   Bell,
   Clock,
   Download,
@@ -109,6 +112,7 @@ export const Icons = {
   Folder,
   AlertTriangle,
   ArrowUp,
+  ArrowDown,
   Edit,
   Trash2,
   Google: (props) => (

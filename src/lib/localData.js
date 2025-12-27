@@ -1,35 +1,11 @@
 import { mockService } from "./mockData";
 
 export const localDataService = {
-  getProjects: () => {
-    return mockService.getProjects();
+  getProjects: (clientId = null) => {
+    return mockService.getProjects(clientId);
   },
   getUsers: () => {
-    return [
-      {
-        id: 1,
-        name: "John Doe",
-        email: "john@example.com",
-        role: "Client",
-        company: "Acme Corp",
-        avatar: null,
-      },
-      {
-        id: 2,
-        name: "Jane Smith",
-        email: "jane@example.com",
-        role: "Client",
-        company: "Global Tech",
-        avatar: null,
-      },
-      {
-        id: 3,
-        name: "Admin User",
-        email: "admin@akatech.com",
-        role: "Admin",
-        company: "AkaTech",
-      },
-    ];
+    return mockService.getUsers();
   },
   getInvoices: () => {
     return mockService.getInvoices();
@@ -60,18 +36,26 @@ export const localDataService = {
   },
   saveProject: (project) => {
     console.log("Saving project locally:", project);
-    return project;
+    return mockService.saveProject(project);
   },
   deleteProject: (id) => {
     console.log("Deleting project locally:", id);
+    return mockService.deleteProject(id);
+  },
+  deleteUser: (id) => {
+    console.log("Deleting user locally:", id);
+    return mockService.deleteUser(id);
+  },
+  getAuditLogs: () => {
+    return mockService.getAuditLogs();
   },
   updateProject: (project) => {
     console.log("Updating project locally:", project);
-    return project;
+    return mockService.saveProject(project);
   },
   updateUser: (user) => {
     console.log("Updating user:", user);
-    return user;
+    return mockService.saveUser(user);
   },
   updateAvatar: (id, url) => {
     console.log("Updating avatar:", id, url);

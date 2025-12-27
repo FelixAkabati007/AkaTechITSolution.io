@@ -28,16 +28,9 @@ export const ClientProjects = ({ user }) => {
       // Mock Data Integration
       // In a real scenario, we would check res.ok and await res.json()
       // But for stability in this preview, we default to localDataService
-      const projects = localDataService.getProjects();
-      const userProjects = projects.filter(
-        (p) => p.clientId === user.id || true
-      ); // Show all for demo
-
-      // Map API data to UI structure (adapting mock structure)
-      // The mockData structure is already closer to UI needs than the raw API map above
-      // So we just use it directly or map if needed.
-      // Let's assume mockData returns the structure we need.
-      setProjects(userProjects);
+      // Filter by user.id to show only this client's projects
+      const projects = localDataService.getProjects(user.id);
+      setProjects(projects);
     } catch (err) {
       console.error("Failed to fetch projects", err);
       // Fallback

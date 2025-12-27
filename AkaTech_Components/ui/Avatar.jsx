@@ -14,7 +14,8 @@ export const Avatar = ({ src, fallback, alt, size = "md", className = "" }) => {
     // Basic check to filter out obviously invalid URLs before attempting load
     const isValidUrl =
       (src.startsWith("http") || src.startsWith("/")) &&
-      !src.includes("example.com");
+      !src.includes("example.com") &&
+      !src.includes("lh3.googleusercontent.com"); // Filter out Google avatars that block ORB
     if (isValidUrl) {
       return (
         <img

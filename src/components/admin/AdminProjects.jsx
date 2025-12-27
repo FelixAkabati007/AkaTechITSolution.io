@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
-import { Icons } from "@components/ui/Icons";
+import { Icons } from "../../../AkaTech_Components/ui/Icons";
 import { localDataService } from "@lib/localData";
+import { ClientSelectionModal } from "./ClientSelectionModal";
 
 /**
  * AdminProjects Component
@@ -16,6 +17,7 @@ export const AdminProjects = () => {
   // State for project list and UI controls
   const [projects, setProjects] = useState([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isClientModalOpen, setIsClientModalOpen] = useState(false);
   const [currentProject, setCurrentProject] = useState(null);
 
   // Form state for creating/editing projects
@@ -28,6 +30,7 @@ export const AdminProjects = () => {
 
   // Available clients for assignment
   const [clients, setClients] = useState([]);
+  const [isLoadingClients, setIsLoadingClients] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -37,8 +40,17 @@ export const AdminProjects = () => {
    * Loads projects and clients from the service
    */
   const loadData = () => {
-    setProjects(localDataService.getProjects());
-    setClients(localDataService.getUsers().filter((u) => u.role === "Client"));
+    setIsLoadingClients(true);
+    // Simulate network delay for realistic loading state
+    setTimeout(() => {
+      setProjects(localDataService.getProjects());
+      setClients(
+        localDataService
+          .getUsers()
+          .filter((u) => u.role === "Client" && u.status === "Verified")
+      );
+      setIsLoadingClients(false);
+    }, 500);
   };
 
   /**
@@ -91,6 +103,11 @@ export const AdminProjects = () => {
     return client ? client.name : "Unknown Client";
   };
 
+  const handleClientSelect = (client) => {
+    setFormData({ ...formData, clientId: client.id });
+    setIsClientModalOpen(false);
+  };
+
   return (
     <div className="p-8 space-y-6">
       <div className="flex justify-between items-center">
@@ -101,7 +118,7 @@ export const AdminProjects = () => {
           onClick={() => handleOpenModal()}
           className="px-4 py-2 bg-akatech-gold text-white text-sm font-bold uppercase tracking-widest hover:bg-akatech-goldDark transition-colors flex items-center gap-2"
         >
-          <Icons.Plus className="w-4 h-4" /> New Project
+          <Icons.Plus className="w-4 h-4" /> Create Project
         </button>
       </div>
 
@@ -146,12 +163,12 @@ export const AdminProjects = () => {
                   </td>
                   <td className="px-6 py-4">
                     <span
-                      className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                      className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${
                         project.status === "Completed"
-                          ? "bg-green-100 text-green-800"
+                          ? "bg-green-100 text-green-800 border-green-200"
                           : project.status === "In Progress"
-                          ? "bg-blue-100 text-blue-800"
-                          : "bg-gray-100 text-gray-800"
+                          ? "bg-akatech-gold/10 text-akatech-gold border-akatech-gold/20"
+                          : "bg-gray-100 text-gray-800 border-gray-200"
                       }`}
                     >
                       {project.status}
@@ -198,25 +215,21 @@ export const AdminProjects = () => {
           <div className="bg-white dark:bg-akatech-card w-full max-w-md rounded-lg shadow-xl border border-gray-200 dark:border-white/10">
             <div className="p-6 border-b border-gray-200 dark:border-white/10 flex justify-between items-center">
               <h3 className="text-xl font-bold text-gray-900 dark:text-white">
-                {currentProject ? "Edit Project" : "Create New Project"}
+                {currentProject ? "Edit Project" : "New Project"}
               </h3>
               <button
                 onClick={() => setIsModalOpen(false)}
-                className="text-gray-400 hover:text-gray-500 dark:hover:text-gray-300"
+                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
               >
-                <Icons.X className="w-5 h-5" />
+                <Icons.X className="w-6 h-6" />
               </button>
             </div>
             <form onSubmit={handleSubmit} className="p-6 space-y-4">
               <div>
-                <label
-                  htmlFor="project-title"
-                  className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
-                >
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   Project Title
                 </label>
                 <input
-                  id="project-title"
                   type="text"
                   required
                   value={formData.title}
@@ -224,44 +237,39 @@ export const AdminProjects = () => {
                     setFormData({ ...formData, title: e.target.value })
                   }
                   className="w-full px-3 py-2 bg-gray-50 dark:bg-black/20 border border-gray-200 dark:border-white/10 rounded-lg focus:ring-2 focus:ring-akatech-gold focus:border-transparent outline-none transition-all"
-                  placeholder="e.g. Website Redesign"
                 />
               </div>
 
               <div>
-                <label
-                  htmlFor="project-client"
-                  className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
-                >
-                  Client (ID)
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Client
                 </label>
-                <select
-                  id="project-client"
-                  required
-                  value={formData.clientId}
-                  onChange={(e) =>
-                    setFormData({ ...formData, clientId: e.target.value })
-                  }
-                  className="w-full px-3 py-2 bg-gray-50 dark:bg-black/20 border border-gray-200 dark:border-white/10 rounded-lg focus:ring-2 focus:ring-akatech-gold focus:border-transparent outline-none transition-all"
+                <div
+                  className="w-full px-3 py-2 bg-gray-50 dark:bg-black/20 border border-gray-200 dark:border-white/10 rounded-lg cursor-pointer flex justify-between items-center hover:bg-gray-100 dark:hover:bg-white/5 transition-colors"
+                  onClick={() => setIsClientModalOpen(true)}
                 >
-                  <option value="">Select Client</option>
-                  {clients.map((client) => (
-                    <option key={client.id} value={client.id}>
-                      {client.name}
-                    </option>
-                  ))}
-                </select>
+                  <span
+                    className={
+                      formData.clientId
+                        ? "text-gray-900 dark:text-white"
+                        : "text-gray-400"
+                    }
+                  >
+                    {formData.clientId
+                      ? getClientName(parseInt(formData.clientId))
+                      : "Select Client"}
+                  </span>
+                  <Icons.ChevronDown className="w-4 h-4 text-gray-400" />
+                </div>
+                {/* Hidden input for validation if needed, or handle validation manually */}
+                <input type="hidden" required value={formData.clientId} />
               </div>
 
               <div>
-                <label
-                  htmlFor="project-status"
-                  className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
-                >
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   Status
                 </label>
                 <select
-                  id="project-status"
                   value={formData.status}
                   onChange={(e) =>
                     setFormData({ ...formData, status: e.target.value })
@@ -271,40 +279,34 @@ export const AdminProjects = () => {
                   <option value="Pending">Pending</option>
                   <option value="In Progress">In Progress</option>
                   <option value="Completed">Completed</option>
-                  <option value="On Hold">On Hold</option>
                 </select>
               </div>
 
               <div>
-                <label
-                  htmlFor="project-description"
-                  className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
-                >
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   Description
                 </label>
                 <textarea
-                  id="project-description"
                   rows="3"
                   value={formData.description}
                   onChange={(e) =>
                     setFormData({ ...formData, description: e.target.value })
                   }
-                  className="w-full px-3 py-2 bg-gray-50 dark:bg-black/20 border border-gray-200 dark:border-white/10 rounded-lg focus:ring-2 focus:ring-akatech-gold focus:border-transparent outline-none transition-all"
-                  placeholder="Project details..."
-                />
+                  className="w-full px-3 py-2 bg-gray-50 dark:bg-black/20 border border-gray-200 dark:border-white/10 rounded-lg focus:ring-2 focus:ring-akatech-gold focus:border-transparent outline-none transition-all resize-none"
+                ></textarea>
               </div>
 
-              <div className="flex justify-end gap-3 pt-4">
+              <div className="flex justify-end pt-4">
                 <button
                   type="button"
                   onClick={() => setIsModalOpen(false)}
-                  className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/5 rounded-lg transition-colors"
+                  className="px-4 py-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 mr-2"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 bg-akatech-gold text-white text-sm font-bold uppercase tracking-widest hover:bg-akatech-goldDark rounded-lg transition-colors"
+                  className="px-4 py-2 bg-akatech-gold text-white font-bold rounded-lg hover:bg-akatech-goldDark transition-colors"
                 >
                   {currentProject ? "Update Project" : "Create Project"}
                 </button>
@@ -313,7 +315,16 @@ export const AdminProjects = () => {
           </div>
         </div>
       )}
+
+      {/* Client Selection Modal */}
+      <ClientSelectionModal
+        isOpen={isClientModalOpen}
+        onClose={() => setIsClientModalOpen(false)}
+        onSelect={handleClientSelect}
+        onDelete={handleClientDelete}
+        clients={clients}
+        isLoading={isLoadingClients}
+      />
     </div>
   );
 };
-
