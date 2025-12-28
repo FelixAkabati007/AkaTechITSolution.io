@@ -8,6 +8,13 @@
       "when": 1766880479484,
       "tag": "0000_handy_energizer",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1766962853245,
+      "tag": "0001_spicy_corsair",
+      "breakpoints": true
     }
   ]
 }

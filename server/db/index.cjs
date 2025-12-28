@@ -13,7 +13,7 @@ if (connectionString) {
     ssl: { rejectUnauthorized: false }, // Required for Neon
     max: 10, // Connection pool size
     idleTimeoutMillis: 30000,
-    connectionTimeoutMillis: 10000, // Increased to handle Neon cold starts
+    connectionTimeoutMillis: 30000, // Increased to 30s to handle Neon cold starts
   });
   db = drizzle(pool, { schema });
 } else {

@@ -173,19 +173,29 @@ const subscriptions = pgTable(
   }
 );
 
-const invoices = pgTable("invoices", {
-  id: uuid("id").defaultRandom().primaryKey(),
-  referenceNumber: text("reference_number").unique().notNull(),
-  userId: uuid("user_id").references(() => users.id),
-  projectId: uuid("project_id").references(() => projects.id), // Optional if not linked to project yet
-  amount: text("amount"), // Using text to avoid precision issues or for flexibility
-  status: text("status").default("requested"), // requested, draft, sent, paid, overdue, cancelled
-  dueDate: timestamp("due_date"),
-  description: text("description"), // For the request message
-  items: jsonb("items"), // List of invoice items
-  createdAt: timestamp("created_at").defaultNow(),
-  updatedAt: timestamp("updated_at").defaultNow(),
-});
+const invoices = pgTable(
+  "invoices",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    referenceNumber: text("reference_number").unique().notNull(),
+    userId: uuid("user_id").references(() => users.id),
+    projectId: uuid("project_id").references(() => projects.id), // Optional if not linked to project yet
+    amount: text("amount"), // Using text to avoid precision issues or for flexibility
+    status: text("status").default("requested"), // requested, draft, sent, paid, overdue, cancelled
+    dueDate: timestamp("due_date"),
+    description: text("description"), // For the request message
+    items: jsonb("items"), // List of invoice items
+    createdAt: timestamp("created_at").defaultNow(),
+    updatedAt: timestamp("updated_at").defaultNow(),
+  },
+  (table) => {
+    return {
+      userIdIdx: index("invoices_user_id_idx").on(table.userId),
+      projectIdIdx: index("invoices_project_id_idx").on(table.projectId),
+      statusIdx: index("invoices_status_idx").on(table.status),
+    };
+  }
+);
 
 const systemSettings = pgTable("system_settings", {
   key: text("key").primaryKey(),

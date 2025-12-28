@@ -16,59 +16,69 @@ const { eq, desc, and, or, notInArray, sql } = require("drizzle-orm");
 // Dashboard Stats
 const getDashboardStats = async () => {
   if (!db) return null;
+  console.log("Fetching dashboard stats...");
+  try {
+    // 1. Total Users
+    const usersCount = await db
+      .select({ count: sql`count(*)` })
+      .from(users)
+      .then((res) => parseInt(res[0].count));
+    console.log("Users count fetched:", usersCount);
 
-  // 1. Total Users
-  const usersCount = await db
-    .select({ count: sql`count(*)` })
-    .from(users)
-    .then((res) => parseInt(res[0].count));
+    // 2. Active Projects (not completed or rejected)
+    const activeProjectsCount = await db
+      .select({ count: sql`count(*)` })
+      .from(projects)
+      .where(notInArray(projects.status, ["completed", "rejected"]))
+      .then((res) => parseInt(res[0].count));
+    console.log("Active projects fetched:", activeProjectsCount);
 
-  // 2. Active Projects (not completed or rejected)
-  const activeProjectsCount = await db
-    .select({ count: sql`count(*)` })
-    .from(projects)
-    .where(notInArray(projects.status, ["completed", "rejected"]))
-    .then((res) => parseInt(res[0].count));
+    // 3. Pending Tickets (not resolved or closed)
+    const pendingTicketsCount = await db
+      .select({ count: sql`count(*)` })
+      .from(tickets)
+      .where(notInArray(tickets.status, ["resolved", "closed"]))
+      .then((res) => parseInt(res[0].count));
+    console.log("Pending tickets fetched:", pendingTicketsCount);
 
-  // 3. Pending Tickets (not resolved or closed)
-  const pendingTicketsCount = await db
-    .select({ count: sql`count(*)` })
-    .from(tickets)
-    .where(notInArray(tickets.status, ["resolved", "closed"]))
-    .then((res) => parseInt(res[0].count));
+    // 4. Total Revenue (Sum of paid invoices)
+    const paidInvoices = await db
+      .select()
+      .from(invoices)
+      .where(or(eq(invoices.status, "paid"), eq(invoices.status, "Paid")));
 
-  // 4. Total Revenue (Sum of paid invoices)
-  const paidInvoices = await db
-    .select()
-    .from(invoices)
-    .where(or(eq(invoices.status, "paid"), eq(invoices.status, "Paid")));
+    const totalRevenue = paidInvoices.reduce((acc, inv) => {
+      // Remove non-numeric chars except dot
+      const cleanAmount = inv.amount ? inv.amount.replace(/[^0-9.]/g, "") : "0";
+      return acc + (parseFloat(cleanAmount) || 0);
+    }, 0);
+    console.log("Total revenue calculated:", totalRevenue);
 
-  const totalRevenue = paidInvoices.reduce((acc, inv) => {
-    // Remove non-numeric chars except dot
-    const cleanAmount = inv.amount ? inv.amount.replace(/[^0-9.]/g, "") : "0";
-    return acc + (parseFloat(cleanAmount) || 0);
-  }, 0);
+    // 5. Outstanding Revenue (Sum of invoices not paid/cancelled)
+    const outstandingInvoices = await db
+      .select()
+      .from(invoices)
+      .where(
+        notInArray(invoices.status, ["paid", "Paid", "cancelled", "Cancelled"])
+      );
 
-  // 5. Outstanding Revenue (Sum of invoices not paid/cancelled)
-  const outstandingInvoices = await db
-    .select()
-    .from(invoices)
-    .where(
-      notInArray(invoices.status, ["paid", "Paid", "cancelled", "Cancelled"])
-    );
+    const outstandingRevenue = outstandingInvoices.reduce((acc, inv) => {
+      const cleanAmount = inv.amount ? inv.amount.replace(/[^0-9.]/g, "") : "0";
+      return acc + (parseFloat(cleanAmount) || 0);
+    }, 0);
+    console.log("Outstanding revenue calculated:", outstandingRevenue);
 
-  const outstandingRevenue = outstandingInvoices.reduce((acc, inv) => {
-    const cleanAmount = inv.amount ? inv.amount.replace(/[^0-9.]/g, "") : "0";
-    return acc + (parseFloat(cleanAmount) || 0);
-  }, 0);
-
-  return {
-    totalUsers: usersCount,
-    activeProjects: activeProjectsCount,
-    pendingTickets: pendingTicketsCount,
-    totalRevenue,
-    outstandingRevenue,
-  };
+    return {
+      totalUsers: usersCount,
+      activeProjects: activeProjectsCount,
+      pendingTickets: pendingTicketsCount,
+      totalRevenue,
+      outstandingRevenue,
+    };
+  } catch (error) {
+    console.error("Error in getDashboardStats:", error);
+    throw error;
+  }
 };
 const getUserByEmail = async (email) => {
   if (!db) return null;
