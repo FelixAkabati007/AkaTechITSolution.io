@@ -99,11 +99,11 @@ export default function App() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ username: email, password }),
     })
-      .then((res) => {
-        if (!res.ok)
-          return res.json().then((err) => {
-            throw new Error(err.error || "Login failed");
-          });
+      .then(async (res) => {
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({}));
+          throw new Error(errData.error || errData.message || "Login failed");
+        }
         return res.json();
       })
       .then((data) => {
@@ -145,9 +145,12 @@ export default function App() {
       },
       body: JSON.stringify({ token: tokenResponse.access_token }),
     })
-      .then((res) => {
+      .then(async (res) => {
         if (res.ok) return res.json();
-        throw new Error("Google auth failed");
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(
+          errData.error || errData.details || "Google auth failed"
+        );
       })
       .then((data) => {
         localStorage.setItem("token", data.token);
@@ -156,15 +159,23 @@ export default function App() {
         setView("dashboard");
       })
       .catch((err) => {
-        console.error(err);
+        console.error("Google Login Error:", err);
       });
   };
 
-  const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
+  const googleClientId =
+    import.meta.env.VITE_GOOGLE_CLIENT_ID ||
+    "336631405778-sngll5qo5a8mo57ifn9ru8ol1m7r7cgs.apps.googleusercontent.com";
 
   if (!googleClientId) {
     console.error(
       "Critical Error: VITE_GOOGLE_CLIENT_ID is missing in environment variables."
+    );
+  } else {
+    // Debug log to ensure Client ID is loaded (masked for security)
+    console.log(
+      "Google Client ID loaded:",
+      googleClientId.substring(0, 10) + "..."
     );
   }
 

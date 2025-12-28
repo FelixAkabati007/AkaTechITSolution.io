@@ -39,16 +39,16 @@ export default defineConfig({
   build: {
     rollupOptions: {
       output: {
-        // manualChunks: {
-        //   vendor: ["react", "react-dom", "framer-motion"],
-        //   ui: ["lucide-react", "clsx", "tailwind-merge"],
-        //   spline: ["@splinetool/react-spline", "@splinetool/runtime"],
-        //   pdf: ["jspdf", "html2canvas"],
-        //   realtime: ["socket.io-client"],
-        // },
+        manualChunks: {
+          vendor: ["react", "react-dom", "framer-motion"],
+          ui: ["lucide-react", "clsx", "tailwind-merge"],
+          spline: ["@splinetool/react-spline", "@splinetool/runtime"],
+          pdf: ["jspdf"],
+          realtime: ["socket.io-client"],
+        },
       },
     },
-    chunkSizeWarningLimit: 1000,
+    chunkSizeWarningLimit: 1600,
   },
   test: {
     globals: true,

@@ -23,11 +23,17 @@ const app = express();
 const server = http.createServer(app);
 
 const CLIENT_URL = process.env.CLIENT_URL || "http://localhost:5175";
+const ALLOWED_ORIGINS = [
+  CLIENT_URL,
+  "https://aka-tech-two.vercel.app",
+  "http://localhost:5173", // Vite default
+  "http://localhost:3000", // Common alternative
+];
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL;
 
 const io = new Server(server, {
   cors: {
-    origin: CLIENT_URL,
+    origin: ALLOWED_ORIGINS,
     methods: ["GET", "POST"],
     credentials: true,
   },
@@ -49,7 +55,19 @@ app.use(
 );
 app.use(
   cors({
-    origin: CLIENT_URL,
+    origin: (origin, callback) => {
+      // Allow requests with no origin (like mobile apps or curl requests)
+      if (!origin) return callback(null, true);
+      if (
+        ALLOWED_ORIGINS.indexOf(origin) !== -1 ||
+        origin.endsWith(".vercel.app")
+      ) {
+        callback(null, true);
+      } else {
+        console.warn("Blocked by CORS:", origin);
+        callback(new Error("Not allowed by CORS"));
+      }
+    },
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     credentials: true,
   })

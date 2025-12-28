@@ -534,9 +534,18 @@ export const SignupWizard = ({ initialPlan, onBack, onComplete }) => {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
-      const data = await res.json();
 
-      if (!res.ok) throw new Error(data.error || "Verification failed");
+      let data;
+      try {
+        data = await res.json();
+      } catch (e) {
+        throw new Error(`Server returned non-JSON response (${res.status})`);
+      }
+
+      if (!res.ok)
+        throw new Error(
+          data.error || data.details || data.message || "Verification failed"
+        );
 
       if (action === "google") {
         setEmailVerified(true);
