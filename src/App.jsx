@@ -162,7 +162,7 @@ export default function App() {
 
   return (
     <GoogleOAuthProvider
-      clientId="336631405778-sngll5qo5a8mo57ifn9ru8ol1m7r7cgs.apps.googleusercontent.com"
+      clientId={import.meta.env.VITE_GOOGLE_CLIENT_ID}
       onScriptLoadError={() =>
         console.error("Google Sign-In script failed to load")
       }

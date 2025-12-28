@@ -204,6 +204,13 @@ app.post("/api/signup/verify-google", async (req, res) => {
         accountType: "google",
         passwordHash: null, // No password initially
       });
+
+      if (!user) {
+        throw new Error(
+          "Failed to create user. Database might be unavailable."
+        );
+      }
+
       await logAudit("USER_REGISTER_GOOGLE", user.id, { email: user.email });
     } else {
       // Existing user
