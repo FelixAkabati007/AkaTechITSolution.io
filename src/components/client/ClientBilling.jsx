@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { Icons } from "@components/ui/Icons";
 import { jsPDF } from "jspdf";
 import { useToast } from "@components/ui/ToastProvider";
+import { io } from "socket.io-client";
 
 const PROJECT_TYPES = [
   {
@@ -135,57 +136,85 @@ export const ClientBilling = ({ user }) => {
   });
   const [paymentMethod, setPaymentMethod] = useState("card");
   const [paymentReference, setPaymentReference] = useState("");
+  const [socketStatus, setSocketStatus] = useState("disconnected");
+
+  const fetchData = useCallback(async () => {
+    try {
+      const token = localStorage.getItem("token");
+      const headers = { Authorization: `Bearer ${token}` };
+
+      const [invRes, projRes] = await Promise.all([
+        fetch("/api/client/invoices", { headers }),
+        fetch(`/api/client/projects?email=${user.email}`, { headers }),
+      ]);
+
+      if (!invRes.ok) {
+        throw new Error("Failed to fetch invoices");
+      }
+
+      if (!projRes.ok) {
+        console.warn("Failed to fetch projects");
+      }
+
+      const invData = await invRes.json();
+      const projData = projRes.ok ? await projRes.json() : [];
+
+      const mapped = invData.map((inv) => {
+        let status = inv.status.charAt(0).toUpperCase() + inv.status.slice(1);
+        if (status === "Sent" || status === "Requested") status = "Unpaid";
+
+        return {
+          id: inv.referenceNumber || inv.id,
+          projectId: inv.projectId,
+          amount: parseFloat(inv.amount || 0),
+          status: status,
+          date: new Date(inv.createdAt).toLocaleDateString(),
+          dueDate: inv.dueDate
+            ? new Date(inv.dueDate).toLocaleDateString()
+            : "Pending",
+          description: inv.description,
+        };
+      });
+      setInvoices(mapped);
+      setFilteredInvoices(mapped);
+      setProjects(projData);
+    } catch (e) {
+      console.error("Error fetching billing data:", e);
+      addToast("Failed to load billing data. Please try again.", "error");
+    }
+  }, [user.email, addToast]);
 
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const token = localStorage.getItem("token");
-        const headers = { Authorization: `Bearer ${token}` };
-
-        const [invRes, projRes] = await Promise.all([
-          fetch("/api/client/invoices", { headers }),
-          fetch(`/api/client/projects?email=${user.email}`, { headers }),
-        ]);
-
-        if (!invRes.ok) {
-          throw new Error("Failed to fetch invoices");
-        }
-
-        if (!projRes.ok) {
-          // Projects might be optional or handleable, but let's log it.
-          console.warn("Failed to fetch projects");
-        }
-
-        const invData = await invRes.json();
-        const projData = projRes.ok ? await projRes.json() : [];
-
-        const mapped = invData.map((inv) => {
-          let status = inv.status.charAt(0).toUpperCase() + inv.status.slice(1);
-          // Map technical statuses to user-friendly ones
-          if (status === "Sent" || status === "Requested") status = "Unpaid";
-
-          return {
-            id: inv.referenceNumber || inv.id,
-            projectId: inv.projectId,
-            amount: parseFloat(inv.amount || 0),
-            status: status,
-            date: new Date(inv.createdAt).toLocaleDateString(),
-            dueDate: inv.dueDate
-              ? new Date(inv.dueDate).toLocaleDateString()
-              : "Pending",
-            description: inv.description,
-          };
-        });
-        setInvoices(mapped);
-        setFilteredInvoices(mapped);
-        setProjects(projData);
-      } catch (e) {
-        console.error("Error fetching billing data:", e);
-        addToast("Failed to load billing data. Please try again.", "error");
-      }
-    };
     fetchData();
-  }, [user.id, user.email, addToast]);
+
+    const socket = io("http://localhost:3001");
+
+    socket.on("connect", () => {
+      setSocketStatus("connected");
+    });
+
+    socket.on("disconnect", () => {
+      setSocketStatus("disconnected");
+    });
+
+    socket.on("connect_error", () => {
+      setSocketStatus("error");
+    });
+
+    socket.on("invoice_created", () => {
+      fetchData();
+      addToast("New invoice received", "info");
+    });
+
+    socket.on("invoice_updated", () => {
+      fetchData();
+      addToast("Invoice updated", "info");
+    });
+
+    return () => {
+      socket.disconnect();
+    };
+  }, [fetchData, addToast]);
 
   useEffect(() => {
     if (filterStatus === "All") {
@@ -379,8 +408,18 @@ export const ClientBilling = ({ user }) => {
   return (
     <div className="space-y-6">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-        <h2 className="text-2xl font-serif text-gray-900 dark:text-white">
+        <h2 className="text-2xl font-serif text-gray-900 dark:text-white flex items-center gap-3">
           Billing & Invoices
+          <span
+            className={`flex h-3 w-3 rounded-full ${
+              socketStatus === "connected"
+                ? "bg-green-500"
+                : socketStatus === "error"
+                ? "bg-red-500"
+                : "bg-yellow-500"
+            }`}
+            title={`Live Sync: ${socketStatus}`}
+          />
         </h2>
         <div className="flex gap-2">
           <div className="flex bg-gray-100 dark:bg-white/5 p-1 rounded-lg">

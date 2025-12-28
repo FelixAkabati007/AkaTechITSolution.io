@@ -55,6 +55,7 @@ import {
   ArrowDown,
   Edit,
   Trash2,
+  History,
 } from "lucide-react";
 
 export const Icons = {
@@ -115,6 +116,7 @@ export const Icons = {
   ArrowDown,
   Edit,
   Trash2,
+  History,
   Google: (props) => (
     <svg
       {...props}

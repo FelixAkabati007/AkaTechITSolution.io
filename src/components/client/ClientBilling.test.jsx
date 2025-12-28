@@ -45,6 +45,16 @@ vi.mock("jspdf", () => {
   };
 });
 
+// Mock socket.io-client
+vi.mock("socket.io-client", () => ({
+  io: vi.fn(() => ({
+    on: vi.fn(),
+    off: vi.fn(),
+    emit: vi.fn(),
+    disconnect: vi.fn(),
+  })),
+}));
+
 describe("ClientBilling", () => {
   const mockUser = {
     id: 1,

@@ -582,6 +582,7 @@ app.post("/api/admin/invoices", authenticateToken, async (req, res) => {
     });
 
     // Notify user if project/user linked? (Optional for now)
+    io.emit("invoice_created", newInvoice);
 
     res.status(201).json(newInvoice);
   } catch (error) {
@@ -603,6 +604,7 @@ app.patch("/api/admin/invoices/:id", authenticateToken, async (req, res) => {
     }
 
     const updatedInvoice = await dal.updateInvoice(id, updates);
+    io.emit("invoice_updated", updatedInvoice);
     res.json(updatedInvoice);
   } catch (error) {
     console.error("Update Invoice Error:", error);
@@ -629,6 +631,19 @@ app.delete("/api/admin/invoices/:id", authenticateToken, async (req, res) => {
   } catch (error) {
     console.error("Delete Invoice Error:", error);
     res.status(500).json({ error: "Failed to delete invoice" });
+  }
+});
+
+// 1m. Get Audit Logs
+app.get("/api/admin/audit-logs", authenticateToken, async (req, res) => {
+  if (req.user.role !== "admin")
+    return res.status(403).json({ error: "Unauthorized" });
+  try {
+    const logs = await dal.getAllAuditLogs();
+    res.json(logs);
+  } catch (error) {
+    console.error("Get Audit Logs Error:", error);
+    res.status(500).json({ error: "Failed to fetch audit logs." });
   }
 });
 
