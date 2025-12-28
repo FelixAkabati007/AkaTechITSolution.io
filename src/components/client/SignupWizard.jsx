@@ -148,6 +148,7 @@ const StepSignup = ({ onVerify, loading }) => {
           )}
           <GoogleLogin
             onSuccess={(credentialResponse) => {
+              console.log("Google Login Success:", credentialResponse);
               setError(""); // Clear previous errors
               onVerify("google", {
                 token: credentialResponse.credential,
@@ -178,7 +179,7 @@ const StepSignup = ({ onVerify, loading }) => {
               });
             }}
             onError={() => {
-              console.log("Login Failed");
+              console.error("Google Login Failed (onError triggered)");
               setError("Google Login Failed. Please try again.");
             }}
             theme="filled_blue"
