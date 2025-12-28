@@ -5,7 +5,7 @@ import { Icons } from "@components/ui/Icons";
 import { PRICING_PACKAGES } from "../../lib/data";
 import { identityService } from "../../lib/IdentityService";
 
-const API_URL = "http://localhost:3001/api";
+const API_URL = "/api";
 
 const StepPackageSelection = ({ selectedPackage, onSelect }) => {
   return (

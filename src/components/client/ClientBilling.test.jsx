@@ -37,11 +37,16 @@ vi.mock("@lib/config", () => ({
 // Mock jsPDF
 vi.mock("jspdf", () => {
   return {
-    jsPDF: vi.fn().mockImplementation(() => ({
-      setFontSize: vi.fn(),
-      text: vi.fn(),
-      save: vi.fn(),
-    })),
+    jsPDF: vi.fn(function () {
+      return {
+        setFontSize: vi.fn(),
+        text: vi.fn(),
+        save: vi.fn(),
+        line: vi.fn(),
+        setFont: vi.fn(),
+        output: vi.fn(() => "data:application/pdf;base64,mockpdfcontent"),
+      };
+    }),
   };
 });
 
@@ -117,6 +122,21 @@ describe("ClientBilling", () => {
           ok: true,
           headers: { get: () => "application/json" },
           json: () => Promise.resolve(mockProjects),
+        });
+      }
+      if (url.includes("/api/settings")) {
+        return Promise.resolve({
+          ok: true,
+          headers: { get: () => "application/json" },
+          json: () =>
+            Promise.resolve({
+              bankName: "Test Bank",
+              accountName: "Test Account",
+              accountNumber: "1234567890",
+              branch: "Test Branch",
+              mobileMoneyNumber: "0240000000",
+              mobileMoneyName: "Test Momo",
+            }),
         });
       }
 
@@ -213,6 +233,13 @@ describe("ClientBilling", () => {
           json: () => Promise.resolve({ message: "Success" }),
         });
       }
+      if (url.includes("/api/settings")) {
+        return Promise.resolve({
+          ok: true,
+          headers: { get: () => "application/json" },
+          json: () => Promise.resolve({}),
+        });
+      }
       return Promise.reject("Unknown URL");
     });
 
@@ -236,7 +263,7 @@ describe("ClientBilling", () => {
     });
 
     // Submit
-    const submitButton = screen.getByText(/Pay GH₵/);
+    const submitButton = screen.getByText(/Proceed/i);
     fireEvent.click(submitButton);
 
     await waitFor(() => {
@@ -307,6 +334,13 @@ describe("ClientBilling", () => {
                 referenceNumber: "REQ-123",
               },
             }),
+        });
+      }
+      if (url.includes("/api/settings")) {
+        return Promise.resolve({
+          ok: true,
+          headers: { get: () => "application/json" },
+          json: () => Promise.resolve({}),
         });
       }
       return Promise.reject("Unknown URL");

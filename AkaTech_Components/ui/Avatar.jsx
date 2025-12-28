@@ -14,15 +14,14 @@ export const Avatar = ({ src, fallback, alt, size = "md", className = "" }) => {
     // Basic check to filter out obviously invalid URLs before attempting load
     const isValidUrl =
       (src.startsWith("http") || src.startsWith("/")) &&
-      !src.includes("example.com") &&
-      !src.includes("lh3.googleusercontent.com"); // Filter out Google avatars that block ORB
+      !src.includes("example.com");
+
     if (isValidUrl) {
       return (
         <img
           src={src}
           alt={alt || fallback}
           referrerPolicy="no-referrer"
-          crossOrigin="anonymous"
           onError={() => setError(true)}
           className={`${sizeClasses[size]} rounded-full object-cover border border-gray-200 dark:border-white/10 ${className}`}
         />

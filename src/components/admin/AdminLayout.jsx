@@ -3,6 +3,10 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Icons } from "@components/ui/Icons";
 import { Logo } from "@components/ui/Logo";
 import { ConnectionStatus } from "../shared/ConnectionStatus";
+import {
+  useSyncStatus,
+  SyncStatusIndicator,
+} from "../../hooks/useSyncStatus.jsx";
 
 import { AdminDashboard } from "./AdminDashboard";
 import { AdminClients } from "./AdminClients";
@@ -21,26 +25,7 @@ export const AdminLayout = ({ user, onLogout }) => {
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
 
-  React.useEffect(() => {
-    const loginAdmin = async () => {
-      try {
-        const res = await fetch("http://localhost:3001/api/login", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ username: "admin", password: "admin123" }),
-        });
-        if (res.ok) {
-          const data = await res.json();
-          localStorage.setItem("adminToken", data.token);
-        }
-      } catch (e) {
-        console.error("Admin auto-login failed", e);
-      }
-    };
-
-    // Always refresh token on mount for this demo
-    loginAdmin();
-  }, []);
+  // Removed hardcoded admin auto-login logic for security (C-02)
 
   const menuItems = [
     { id: "dashboard", label: "Dashboard", icon: Icons.LayoutDashboard },
@@ -53,6 +38,9 @@ export const AdminLayout = ({ user, onLogout }) => {
     { id: "support", label: "Support", icon: Icons.LifeBuoy },
     { id: "settings", label: "Settings", icon: Icons.Settings },
   ];
+
+  const componentIds = menuItems.map((item) => item.id);
+  const syncStatuses = useSyncStatus(componentIds);
 
   const renderContent = () => {
     switch (activeTab) {
@@ -158,6 +146,7 @@ export const AdminLayout = ({ user, onLogout }) => {
                   </motion.span>
                 )}
               </AnimatePresence>
+              <SyncStatusIndicator status={syncStatuses[item.id]} />
             </button>
           ))}
         </nav>

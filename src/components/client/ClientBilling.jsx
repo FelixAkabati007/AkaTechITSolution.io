@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { Icons } from "@components/ui/Icons";
 import { jsPDF } from "jspdf";
 import { useToast } from "@components/ui/ToastProvider";
@@ -115,8 +115,10 @@ const PROJECT_TYPES = [
 export const ClientBilling = ({ user }) => {
   const { addToast } = useToast();
   const [invoices, setInvoices] = useState([]);
-  const [filteredInvoices, setFilteredInvoices] = useState([]);
   const [filterStatus, setFilterStatus] = useState("All");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage] = useState(10);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
@@ -137,15 +139,24 @@ export const ClientBilling = ({ user }) => {
   const [paymentMethod, setPaymentMethod] = useState("card");
   const [paymentReference, setPaymentReference] = useState("");
   const [socketStatus, setSocketStatus] = useState("disconnected");
+  const [bankDetails, setBankDetails] = useState({
+    bankName: "Standard Chartered",
+    accountName: "AkaTech Solutions",
+    accountNumber: "1234567890",
+    branch: "Osu",
+    mobileMoneyNumber: "0244027477",
+    mobileMoneyName: "Felix Akabati",
+  });
 
   const fetchData = useCallback(async () => {
     try {
       const token = localStorage.getItem("token");
       const headers = { Authorization: `Bearer ${token}` };
 
-      const [invRes, projRes] = await Promise.all([
+      const [invRes, projRes, settingsRes] = await Promise.all([
         fetch("/api/client/invoices", { headers }),
         fetch(`/api/client/projects?email=${user.email}`, { headers }),
+        fetch("/api/settings"),
       ]);
 
       if (!invRes.ok) {
@@ -158,6 +169,13 @@ export const ClientBilling = ({ user }) => {
 
       const invData = await invRes.json();
       const projData = projRes.ok ? await projRes.json() : [];
+
+      if (settingsRes.ok) {
+        const settingsData = await settingsRes.json();
+        if (settingsData && Object.keys(settingsData).length > 0) {
+          setBankDetails(settingsData);
+        }
+      }
 
       const mapped = invData.map((inv) => {
         let status = inv.status.charAt(0).toUpperCase() + inv.status.slice(1);
@@ -176,7 +194,6 @@ export const ClientBilling = ({ user }) => {
         };
       });
       setInvoices(mapped);
-      setFilteredInvoices(mapped);
       setProjects(projData);
     } catch (e) {
       console.error("Error fetching billing data:", e);
@@ -187,7 +204,12 @@ export const ClientBilling = ({ user }) => {
   useEffect(() => {
     fetchData();
 
-    const socket = io("http://localhost:3001");
+    const socket = io({
+      path: "/socket.io",
+      transports: ["websocket", "polling"],
+      withCredentials: true,
+      reconnectionAttempts: 5,
+    });
 
     socket.on("connect", () => {
       setSocketStatus("connected");
@@ -216,15 +238,26 @@ export const ClientBilling = ({ user }) => {
     };
   }, [fetchData, addToast]);
 
-  useEffect(() => {
-    if (filterStatus === "All") {
-      setFilteredInvoices(invoices);
-    } else {
-      setFilteredInvoices(
-        invoices.filter((inv) => inv.status === filterStatus)
-      );
-    }
-  }, [filterStatus, invoices]);
+  const filteredInvoices = useMemo(() => {
+    return invoices.filter((inv) => {
+      const projectTitle =
+        projects.find((p) => p.id === inv.projectId)?.title || "";
+      const matchesSearch =
+        inv.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        projectTitle.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (inv.description &&
+          inv.description.toLowerCase().includes(searchQuery.toLowerCase()));
+      const matchesStatus =
+        filterStatus === "All" || inv.status === filterStatus;
+      return matchesSearch && matchesStatus;
+    });
+  }, [invoices, searchQuery, filterStatus, projects]);
+
+  const totalPages = Math.ceil(filteredInvoices.length / itemsPerPage);
+  const currentInvoices = filteredInvoices.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
 
   const handleDownloadInvoice = (invoice) => {
     setIsDownloading(true);
@@ -369,11 +402,6 @@ export const ClientBilling = ({ user }) => {
           inv.id === paymentInvoice.id ? { ...inv, status: "Paid" } : inv
         );
         setInvoices(updatedInvoices);
-        setFilteredInvoices((prev) =>
-          prev.map((inv) =>
-            inv.id === paymentInvoice.id ? { ...inv, status: "Paid" } : inv
-          )
-        );
 
         addToast("Payment successful!", "success");
         setIsPaymentModalOpen(false);
@@ -696,10 +724,10 @@ export const ClientBilling = ({ user }) => {
                       the following Mobile Money number:
                     </p>
                     <div className="my-3 font-mono text-lg font-bold text-center">
-                      054 123 4567
+                      {bankDetails.mobileMoneyNumber}
                     </div>
                     <p className="text-xs text-blue-700 dark:text-blue-300">
-                      Name: AkaTech Solutions Ltd.
+                      Name: {bankDetails.mobileMoneyName}
                     </p>
                   </div>
                   <div>
@@ -726,16 +754,17 @@ export const ClientBilling = ({ user }) => {
                     </h4>
                     <div className="text-sm text-purple-800 dark:text-purple-200 space-y-1">
                       <p>
-                        Bank: <strong>Standard Chartered</strong>
+                        Bank: <strong>{bankDetails.bankName}</strong>
                       </p>
                       <p>
-                        Account Name: <strong>AkaTech Solutions</strong>
+                        Account Name: <strong>{bankDetails.accountName}</strong>
                       </p>
                       <p>
-                        Account Number: <strong>1234567890</strong>
+                        Account Number:{" "}
+                        <strong>{bankDetails.accountNumber}</strong>
                       </p>
                       <p>
-                        Branch: <strong>Osu</strong>
+                        Branch: <strong>{bankDetails.branch}</strong>
                       </p>
                     </div>
                   </div>
@@ -769,7 +798,7 @@ export const ClientBilling = ({ user }) => {
                   ) : (
                     <>
                       <Icons.Lock className="w-4 h-4" />
-                      Pay GH₵ {paymentInvoice.amount.toFixed(2)}
+                      Proceed
                     </>
                   )}
                 </button>
@@ -808,8 +837,8 @@ export const ClientBilling = ({ user }) => {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200 dark:divide-white/5">
-              {filteredInvoices.length > 0 ? (
-                filteredInvoices.map((invoice) => (
+              {currentInvoices.length > 0 ? (
+                currentInvoices.map((invoice) => (
                   <tr
                     key={invoice.id}
                     className="hover:bg-gray-50 dark:hover:bg-white/5 transition-colors"
@@ -880,6 +909,33 @@ export const ClientBilling = ({ user }) => {
           </table>
         </div>
       </div>
+
+      {/* Pagination Controls */}
+      {totalPages > 1 && (
+        <div className="flex justify-between items-center mt-4">
+          <span className="text-sm text-gray-500 dark:text-gray-400">
+            Page {currentPage} of {totalPages}
+          </span>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+              disabled={currentPage === 1}
+              className="px-4 py-2 text-sm bg-gray-100 dark:bg-white/10 rounded-lg disabled:opacity-50 hover:bg-gray-200 dark:hover:bg-white/20 transition-colors"
+            >
+              Previous
+            </button>
+            <button
+              onClick={() =>
+                setCurrentPage((prev) => Math.min(prev + 1, totalPages))
+              }
+              disabled={currentPage === totalPages}
+              className="px-4 py-2 text-sm bg-gray-100 dark:bg-white/10 rounded-lg disabled:opacity-50 hover:bg-gray-200 dark:hover:bg-white/20 transition-colors"
+            >
+              Next
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

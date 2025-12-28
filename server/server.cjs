@@ -14,7 +14,10 @@ const crypto = require("crypto");
 const bcrypt = require("bcryptjs");
 const { OAuth2Client } = require("google-auth-library");
 const dal = require("./dal.cjs");
-const { sendLoginNotification } = require("./emailService.cjs");
+const {
+  sendLoginNotification,
+  sendInvoiceEmail,
+} = require("./emailService.cjs");
 
 // --- Load .env manually (Removed: dotenv handles this) ---
 // const envPath = path.join(__dirname, "../.env");
@@ -25,18 +28,25 @@ const server = http.createServer(app);
 
 const io = new Server(server, {
   cors: {
-    origin: "*", // In production, restrict this
+    origin: process.env.CLIENT_URL || "http://localhost:5175", // Restricted to Client URL
     methods: ["GET", "POST"],
   },
 });
 
 const PORT = process.env.PORT || 3001;
-const SECRET_KEY = "akatech-super-secret-key-change-in-prod";
+const SECRET_KEY = process.env.JWT_SECRET;
+if (!SECRET_KEY) {
+  console.error("FATAL: JWT_SECRET is not defined in .env");
+  process.exit(1);
+}
 
 // --- Middleware ---
 app.use(helmet());
 app.use(cors());
 app.use(bodyParser.json());
+
+// Health Check
+app.get("/api/health", (req, res) => res.sendStatus(200));
 
 // Rate Limiter
 const limiter = rateLimit({
@@ -403,6 +413,63 @@ app.post("/api/projects", async (req, res) => {
 });
 
 // 1g. Invoice Request Submission
+app.post(
+  "/api/invoices/generate",
+  authenticateToken,
+  authorizeAdmin,
+  async (req, res) => {
+    const { userId, items, dueDate, amount, description, pdfBase64 } = req.body;
+
+    if (!userId || !amount || !items || items.length === 0) {
+      return res
+        .status(400)
+        .json({ error: "Missing required invoice details" });
+    }
+
+    try {
+      // 1. Create Invoice Record
+      const referenceNumber = `INV-${Date.now()}-${Math.floor(
+        Math.random() * 1000
+      )}`;
+      const newInvoice = await dal.createInvoice({
+        userId,
+        referenceNumber,
+        amount: amount.toString(), // Ensure string
+        dueDate: dueDate
+          ? new Date(dueDate)
+          : new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // Default 7 days
+        description: description
+          ? encrypt(description)
+          : encrypt("Invoice for services"),
+        items: items, // jsonb
+        status: "Sent",
+      });
+
+      // 2. Send Email
+      const user = await dal.getUserById(userId);
+      if (user && pdfBase64) {
+        const pdfBuffer = Buffer.from(pdfBase64, "base64");
+        await sendInvoiceEmail(user.email, newInvoice, pdfBuffer);
+      }
+
+      // 3. Log Audit
+      await logAudit("GENERATE_INVOICE", req.user.id, {
+        invoiceId: newInvoice.id,
+        referenceNumber,
+        userId,
+      });
+
+      // 4. Notify Client (Real-time)
+      io.emit("invoice_generated", newInvoice);
+
+      res.status(201).json(newInvoice);
+    } catch (error) {
+      console.error("Invoice generation error:", error);
+      res.status(500).json({ error: "Failed to generate invoice" });
+    }
+  }
+);
+
 app.post("/api/invoices/request", authenticateToken, async (req, res) => {
   const { subject, message, projectId } = req.body;
 
@@ -633,6 +700,22 @@ app.delete("/api/admin/invoices/:id", authenticateToken, async (req, res) => {
     res.status(500).json({ error: "Failed to delete invoice" });
   }
 });
+
+// 1n. Admin Dashboard Stats
+app.get(
+  "/api/admin/stats",
+  authenticateToken,
+  authorizeAdmin,
+  async (req, res) => {
+    try {
+      const stats = await dal.getDashboardStats();
+      res.json(stats);
+    } catch (error) {
+      console.error("Dashboard Stats Error:", error);
+      res.status(500).json({ error: "Failed to fetch dashboard stats" });
+    }
+  }
+);
 
 // 1m. Get Audit Logs
 app.get("/api/admin/audit-logs", authenticateToken, async (req, res) => {
@@ -1272,6 +1355,13 @@ app.post("/api/signup/complete", async (req, res) => {
       { expiresIn: "24h" }
     );
 
+    // Emit socket event for real-time dashboard updates
+    io.emit("new_user", {
+      user: { id: user.id, name: user.name, email: user.email },
+    });
+    // Also emit generic update
+    io.emit("dashboard_update", { type: "user_registration" });
+
     res.status(201).json({
       message: "Signup completed successfully",
       token,
@@ -1437,6 +1527,40 @@ app.get(
   async (req, res) => {
     const notifications = await dal.getAllNotifications();
     res.json(notifications.slice(0, 50));
+  }
+);
+
+// --- System Settings Routes ---
+app.get("/api/settings", async (req, res) => {
+  res.set("Cache-Control", "no-store, no-cache, must-revalidate, private");
+  try {
+    const bankDetails = await dal.getSystemSetting("bank_details");
+    res.json(bankDetails?.value || {});
+  } catch (err) {
+    console.error("Error fetching settings:", err);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
+app.put(
+  "/api/admin/settings",
+  authenticateToken,
+  authorizeAdmin,
+  async (req, res) => {
+    const { bankDetails } = req.body;
+    if (!bankDetails) {
+      return res.status(400).json({ error: "Missing bank details" });
+    }
+    try {
+      const updated = await dal.setSystemSetting("bank_details", bankDetails);
+      await logAudit("UPDATE_SETTINGS", req.user.email, {
+        key: "bank_details",
+      });
+      res.json(updated.value);
+    } catch (err) {
+      console.error("Error saving settings:", err);
+      res.status(500).json({ error: "Internal Server Error" });
+    }
   }
 );
 

@@ -20,9 +20,7 @@ export const ClientSupport = ({ user }) => {
     if (!user?.email) return;
     try {
       const res = await fetch(
-        `http://localhost:3001/api/client/tickets?email=${encodeURIComponent(
-          user.email
-        )}`
+        `/api/client/tickets?email=${encodeURIComponent(user.email)}`
       );
       if (res.ok) {
         const data = await res.json();
@@ -44,7 +42,7 @@ export const ClientSupport = ({ user }) => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      const res = await fetch("http://localhost:3001/api/tickets", {
+      const res = await fetch("/api/tickets", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -69,17 +67,14 @@ export const ClientSupport = ({ user }) => {
     if (!replyMessage.trim() || !selectedTicket) return;
 
     try {
-      const res = await fetch(
-        `http://localhost:3001/api/client/tickets/${selectedTicket.id}`,
-        {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            email: user.email,
-            response: replyMessage,
-          }),
-        }
-      );
+      const res = await fetch(`/api/client/tickets/${selectedTicket.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: user.email,
+          response: replyMessage,
+        }),
+      });
 
       if (res.ok) {
         const updatedTicket = await res.json();

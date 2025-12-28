@@ -56,6 +56,7 @@ import {
   Edit,
   Trash2,
   History,
+  DollarSign,
 } from "lucide-react";
 
 export const Icons = {
@@ -117,6 +118,7 @@ export const Icons = {
   Edit,
   Trash2,
   History,
+  DollarSign,
   Google: (props) => (
     <svg
       {...props}

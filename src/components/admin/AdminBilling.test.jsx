@@ -32,8 +32,26 @@ vi.mock("@lib/localData", () => ({
 describe("AdminBilling Component", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    global.fetch = vi.fn();
+
+    // Default fetch mock returning successful empty response
+    global.fetch = vi.fn(() =>
+      Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve([]),
+      })
+    );
     window.fetch = global.fetch;
+
+    // Mock localStorage
+    Object.defineProperty(window, "localStorage", {
+      value: {
+        getItem: vi.fn(() => "mock-token"),
+        setItem: vi.fn(),
+        removeItem: vi.fn(),
+        clear: vi.fn(),
+      },
+      writable: true,
+    });
 
     // Setup default socket.on behavior
     mockSocket.on.mockImplementation((event, callback) => {
@@ -131,11 +149,19 @@ describe("AdminBilling Component", () => {
     const toggleBtn = screen.getByText(/Audit Logs/i);
     fireEvent.click(toggleBtn);
 
-    expect(await screen.findByText("System Audit Logs")).toBeInTheDocument();
-    expect(await screen.findByText("TEST_LOG")).toBeInTheDocument();
+    // Wait for the section to appear
+    const sectionHeader = await screen.findByText("System Audit Logs");
+    expect(sectionHeader).toBeInTheDocument();
+
+    // Wait for the specific log entry
+    // Using findByText with a regex to be more flexible with surrounding whitespace/elements
+    const logEntry = await screen.findByText(/TEST_LOG/);
+    expect(logEntry).toBeInTheDocument();
 
     fireEvent.click(screen.getByText(/Hide Logs/i));
-    expect(screen.queryByText("System Audit Logs")).not.toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.queryByText("System Audit Logs")).not.toBeInTheDocument();
+    });
   });
 
   it("requires verification for approving/sending invoice", async () => {
@@ -151,9 +177,8 @@ describe("AdminBilling Component", () => {
     fireEvent.click(createBtn);
 
     // Wait for modal content
-    await waitFor(() => {
-      expect(screen.getByText("Generate Invoice")).toBeInTheDocument();
-    });
+    const modalTitle = await screen.findByText("Create New Invoice");
+    expect(modalTitle).toBeInTheDocument();
 
     // Fill Form
     const amountInput = screen.getByLabelText(/Amount/i);
@@ -167,8 +192,12 @@ describe("AdminBilling Component", () => {
     fireEvent.change(statusSelect, { target: { value: "Sent" } });
 
     // Submit button should be disabled initially for "Sent" status without verification
-    const submitBtn = screen.getByText("Generate Invoice");
-    expect(submitBtn).toBeDisabled();
+    // Note: The button text is "Generate Invoice" when not in edit mode
+    const submitBtn = screen.getByRole("button", { name: /Generate Invoice/i });
+
+    await waitFor(() => {
+      expect(submitBtn).toBeDisabled();
+    });
 
     // Check verification box
     const verifyCheckbox = screen.getByLabelText(
@@ -178,9 +207,6 @@ describe("AdminBilling Component", () => {
     expect(verifyCheckbox).toBeChecked();
 
     await waitFor(() => {
-      if (submitBtn.disabled) {
-        console.log("Button disabled. HTML:", submitBtn.outerHTML);
-      }
       expect(submitBtn).not.toBeDisabled();
     });
   });

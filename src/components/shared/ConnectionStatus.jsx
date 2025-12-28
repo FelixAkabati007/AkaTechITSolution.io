@@ -13,52 +13,48 @@ export const ConnectionStatus = () => {
     window.addEventListener("offline", updateStatus);
 
     // Periodic heartbeat check
-    const checkConnection = async () => {
+    const checkConnection = () => {
       const controller = new AbortController();
       const signal = controller.signal;
 
-      try {
-        // Using a no-cache HEAD request to a static asset
-        const response = await fetch("/favicon.png", {
-          method: "HEAD",
-          cache: "no-store",
-          signal,
-        });
+      (async () => {
+        try {
+          // Using a no-cache HEAD request to the health endpoint
+          const response = await fetch("/api/health", {
+            method: "HEAD",
+            cache: "no-store",
+            signal,
+          });
 
-        if (response.ok) {
-          setIsOnline(true);
-        }
-      } catch (error) {
-        if (error.name !== "AbortError") {
+          if (response.ok && !signal.aborted) {
+            setIsOnline(true);
+          }
+        } catch (error) {
+          // Ignore abort errors or if the signal is already aborted
+          if (error.name === "AbortError" || signal.aborted) {
+            return;
+          }
+          console.warn("Connection check failed:", error);
           setIsOnline(false);
         }
-      }
+      })();
+
       return controller;
     };
 
-    // Check immediately on mount (debounced to avoid strict mode double-fetch)
-    let activeController = null;
-    let initialCheckTimeout = setTimeout(() => {
-      checkConnection().then((controller) => {
-        activeController = controller;
-      });
-    }, 500);
+    // Check immediately on mount
+    let activeController = checkConnection();
 
     // Check every 30 seconds
     const intervalId = setInterval(() => {
-      // Only abort if we strictly need to, but for heartbeat, let's just start a new one.
-      // If we want to avoid overlap, we can abort:
       if (activeController) activeController.abort();
-      checkConnection().then((controller) => {
-        activeController = controller;
-      });
+      activeController = checkConnection();
     }, 30000);
 
     return () => {
       window.removeEventListener("online", updateStatus);
       window.removeEventListener("offline", updateStatus);
       clearInterval(intervalId);
-      clearTimeout(initialCheckTimeout); // Cancel initial check if unmounting immediately
       if (activeController) activeController.abort();
     };
   }, []);

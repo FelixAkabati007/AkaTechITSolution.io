@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { Icons } from "../../../AkaTech_Components/ui/Icons";
 import { localDataService } from "@lib/localData";
 import { ClientSelectionModal } from "./ClientSelectionModal";
@@ -19,6 +19,12 @@ export const AdminProjects = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isClientModalOpen, setIsClientModalOpen] = useState(false);
   const [currentProject, setCurrentProject] = useState(null);
+
+  // Search, Filter, Pagination
+  const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage] = useState(10);
 
   // Form state for creating/editing projects
   const [formData, setFormData] = useState({
@@ -128,6 +134,29 @@ export const AdminProjects = () => {
     }
   };
 
+  // --- Pagination & Filtering Logic ---
+  const filteredProjects = useMemo(() => {
+    return projects.filter((project) => {
+      const clientName = getClientName(project.clientId).toLowerCase();
+      const matchesSearch =
+        project.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        clientName.includes(searchQuery.toLowerCase()) ||
+        (project.description &&
+          project.description
+            .toLowerCase()
+            .includes(searchQuery.toLowerCase()));
+      const matchesStatus =
+        statusFilter === "all" || project.status === statusFilter;
+      return matchesSearch && matchesStatus;
+    });
+  }, [projects, searchQuery, statusFilter, clients]);
+
+  const totalPages = Math.ceil(filteredProjects.length / itemsPerPage);
+  const currentProjects = filteredProjects.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
+
   return (
     <div className="p-8 space-y-6">
       <div className="flex justify-between items-center">
@@ -140,6 +169,36 @@ export const AdminProjects = () => {
         >
           <Icons.Plus className="w-4 h-4" /> Create Project
         </button>
+      </div>
+
+      {/* Search & Filter Controls */}
+      <div className="flex flex-wrap items-center gap-4 bg-white dark:bg-akatech-card p-4 rounded-lg border border-gray-200 dark:border-white/10 shadow-sm">
+        <div className="relative flex-1 min-w-[200px]">
+          <Icons.Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+          <input
+            type="text"
+            placeholder="Search projects..."
+            className="w-full pl-9 pr-4 py-2 rounded-lg border border-gray-300 dark:border-white/10 bg-transparent text-gray-900 dark:text-white focus:ring-2 focus:ring-akatech-gold outline-none"
+            value={searchQuery}
+            onChange={(e) => {
+              setSearchQuery(e.target.value);
+              setCurrentPage(1);
+            }}
+          />
+        </div>
+        <select
+          className="px-4 py-2 rounded-lg border border-gray-300 dark:border-white/10 bg-transparent text-gray-900 dark:text-white focus:ring-2 focus:ring-akatech-gold outline-none"
+          value={statusFilter}
+          onChange={(e) => {
+            setStatusFilter(e.target.value);
+            setCurrentPage(1);
+          }}
+        >
+          <option value="all">All Statuses</option>
+          <option value="Pending">Pending</option>
+          <option value="In Progress">In Progress</option>
+          <option value="Completed">Completed</option>
+        </select>
       </div>
 
       <div className="bg-white dark:bg-akatech-card rounded-lg border border-gray-200 dark:border-white/10 overflow-hidden shadow-sm">
@@ -165,7 +224,7 @@ export const AdminProjects = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200 dark:divide-white/5">
-              {projects.map((project) => (
+              {currentProjects.map((project) => (
                 <tr
                   key={project.id}
                   className="hover:bg-gray-50 dark:hover:bg-white/5 transition-colors"
@@ -229,6 +288,33 @@ export const AdminProjects = () => {
           </table>
         </div>
       </div>
+
+      {/* Pagination Controls */}
+      {totalPages > 1 && (
+        <div className="flex justify-between items-center mt-4">
+          <span className="text-sm text-gray-500 dark:text-gray-400">
+            Page {currentPage} of {totalPages}
+          </span>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+              disabled={currentPage === 1}
+              className="px-4 py-2 text-sm bg-gray-100 dark:bg-white/10 rounded-lg disabled:opacity-50 hover:bg-gray-200 dark:hover:bg-white/20 transition-colors"
+            >
+              Previous
+            </button>
+            <button
+              onClick={() =>
+                setCurrentPage((prev) => Math.min(prev + 1, totalPages))
+              }
+              disabled={currentPage === totalPages}
+              className="px-4 py-2 text-sm bg-gray-100 dark:bg-white/10 rounded-lg disabled:opacity-50 hover:bg-gray-200 dark:hover:bg-white/20 transition-colors"
+            >
+              Next
+            </button>
+          </div>
+        </div>
+      )}
 
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">

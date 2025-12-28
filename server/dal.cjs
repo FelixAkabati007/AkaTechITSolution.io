@@ -9,10 +9,55 @@ const {
   tickets,
   subscriptions,
   invoices,
+  systemSettings,
 } = require("./db/schema.cjs");
-const { eq, desc, and, or } = require("drizzle-orm");
+const { eq, desc, and, or, notInArray, sql } = require("drizzle-orm");
 
-// Users
+// Dashboard Stats
+const getDashboardStats = async () => {
+  if (!db) return null;
+
+  // 1. Total Users
+  const usersCount = await db
+    .select({ count: sql`count(*)` })
+    .from(users)
+    .then((res) => parseInt(res[0].count));
+
+  // 2. Active Projects (not completed or rejected)
+  const activeProjectsCount = await db
+    .select({ count: sql`count(*)` })
+    .from(projects)
+    .where(notInArray(projects.status, ["completed", "rejected"]))
+    .then((res) => parseInt(res[0].count));
+
+  // 3. Pending Tickets (not resolved or closed)
+  const pendingTicketsCount = await db
+    .select({ count: sql`count(*)` })
+    .from(tickets)
+    .where(notInArray(tickets.status, ["resolved", "closed"]))
+    .then((res) => parseInt(res[0].count));
+
+  // 4. Total Revenue (Sum of paid invoices)
+  // Since amount is text, we fetch and sum in JS for safety, or use a robust SQL cast.
+  // For now, let's fetch all 'paid' invoices.
+  const paidInvoices = await db
+    .select()
+    .from(invoices)
+    .where(eq(invoices.status, "paid"));
+
+  const totalRevenue = paidInvoices.reduce((acc, inv) => {
+    // Remove non-numeric chars except dot
+    const cleanAmount = inv.amount ? inv.amount.replace(/[^0-9.]/g, "") : "0";
+    return acc + (parseFloat(cleanAmount) || 0);
+  }, 0);
+
+  return {
+    totalUsers: usersCount,
+    activeProjects: activeProjectsCount,
+    pendingTickets: pendingTicketsCount,
+    totalRevenue,
+  };
+};
 const getUserByEmail = async (email) => {
   if (!db) return null;
   const result = await db.select().from(users).where(eq(users.email, email));
@@ -129,6 +174,35 @@ const getSignupProgress = async (email) => {
     .from(signupProgress)
     .where(eq(signupProgress.email, email));
   return result[0];
+};
+
+// System Settings
+const getSystemSetting = async (key) => {
+  if (!db) return null;
+  const result = await db
+    .select()
+    .from(systemSettings)
+    .where(eq(systemSettings.key, key));
+  return result[0];
+};
+
+const setSystemSetting = async (key, value) => {
+  if (!db) return null;
+  const existing = await getSystemSetting(key);
+  if (existing) {
+    const result = await db
+      .update(systemSettings)
+      .set({ value, updatedAt: new Date() })
+      .where(eq(systemSettings.key, key))
+      .returning();
+    return result[0];
+  } else {
+    const result = await db
+      .insert(systemSettings)
+      .values({ key, value })
+      .returning();
+    return result[0];
+  }
 };
 
 module.exports = {
@@ -375,4 +449,7 @@ module.exports = {
   // Audit Logs
   createAuditLog,
   getAllAuditLogs,
+  getSystemSetting,
+  setSystemSetting,
+  getDashboardStats,
 };

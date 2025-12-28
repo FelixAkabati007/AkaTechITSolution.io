@@ -109,7 +109,14 @@ const invoices = pgTable("invoices", {
   status: text("status").default("requested"), // requested, draft, sent, paid, overdue, cancelled
   dueDate: timestamp("due_date"),
   description: text("description"), // For the request message
+  items: jsonb("items"), // List of invoice items
   createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+const systemSettings = pgTable("system_settings", {
+  key: text("key").primaryKey(),
+  value: jsonb("value"),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
@@ -123,4 +130,5 @@ module.exports = {
   tickets,
   subscriptions,
   invoices,
+  systemSettings,
 };

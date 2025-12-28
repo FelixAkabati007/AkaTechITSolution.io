@@ -17,6 +17,14 @@ export const AdminSettings = () => {
   const [saveMessage, setSaveMessage] = useState(null);
 
   const [auditLog, setAuditLog] = useState([]);
+  const [bankDetails, setBankDetails] = useState({
+    bankName: "Standard Chartered",
+    accountName: "AkaTech Solutions",
+    accountNumber: "1234567890",
+    branch: "Osu",
+    mobileMoneyNumber: "0244027477",
+    mobileMoneyName: "Felix Akabati",
+  });
 
   useEffect(() => {
     setAuditLog(getAuditLog());
@@ -24,6 +32,16 @@ export const AdminSettings = () => {
     if (loadedSettings) {
       setSettings(loadedSettings);
     }
+
+    // Fetch Bank Details
+    fetch("/api/settings")
+      .then((res) => res.json())
+      .then((data) => {
+        if (data && Object.keys(data).length > 0) {
+          setBankDetails((prev) => ({ ...prev, ...data }));
+        }
+      })
+      .catch((err) => console.error("Failed to load settings:", err));
   }, []);
 
   const handleClearAuditLog = () => {
@@ -45,13 +63,35 @@ export const AdminSettings = () => {
     }));
   };
 
+  const handleBankChange = (key, value) => {
+    setBankDetails((prev) => ({
+      ...prev,
+      [key]: value,
+    }));
+  };
+
   const handleSaveChanges = async () => {
     setIsSaving(true);
     setSaveMessage(null);
     try {
-      // Simulate async operation
-      await new Promise((resolve) => setTimeout(resolve, 800));
+      // Save local settings
       localDataService.saveSettings(settings);
+
+      // Save bank details to backend
+      const token = localStorage.getItem("token");
+      const res = await fetch("/api/admin/settings", {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ bankDetails }),
+      });
+
+      if (!res.ok) {
+        throw new Error("Failed to save bank details");
+      }
+
       setSaveMessage({ type: "success", text: "Settings saved successfully!" });
 
       // Clear success message after 3 seconds
@@ -205,6 +245,106 @@ export const AdminSettings = () => {
             </div>
           </div>
         </div>
+        {/* Bank Details Configuration */}
+        <div className="bg-white dark:bg-akatech-card p-6 rounded-xl border border-gray-200 dark:border-white/10 shadow-sm md:col-span-2">
+          <div className="flex items-center gap-3 mb-6">
+            <div className="p-2 bg-purple-500/10 rounded-lg">
+              <Icons.CreditCard className="w-6 h-6 text-purple-500" />
+            </div>
+            <h3 className="text-lg font-bold text-gray-900 dark:text-white">
+              Payment & Bank Details
+            </h3>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="space-y-4">
+              <h4 className="font-bold text-gray-700 dark:text-gray-300 border-b border-gray-200 dark:border-white/10 pb-2">
+                Bank Transfer
+              </h4>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Bank Name
+                </label>
+                <input
+                  type="text"
+                  value={bankDetails.bankName}
+                  onChange={(e) => handleBankChange("bankName", e.target.value)}
+                  className="w-full p-2 rounded-lg border border-gray-300 dark:border-white/10 bg-gray-50 dark:bg-black/20 focus:ring-2 focus:ring-akatech-gold outline-none"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Account Name
+                </label>
+                <input
+                  type="text"
+                  value={bankDetails.accountName}
+                  onChange={(e) =>
+                    handleBankChange("accountName", e.target.value)
+                  }
+                  className="w-full p-2 rounded-lg border border-gray-300 dark:border-white/10 bg-gray-50 dark:bg-black/20 focus:ring-2 focus:ring-akatech-gold outline-none"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Account Number
+                </label>
+                <input
+                  type="text"
+                  value={bankDetails.accountNumber}
+                  onChange={(e) =>
+                    handleBankChange("accountNumber", e.target.value)
+                  }
+                  className="w-full p-2 rounded-lg border border-gray-300 dark:border-white/10 bg-gray-50 dark:bg-black/20 focus:ring-2 focus:ring-akatech-gold outline-none"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Branch
+                </label>
+                <input
+                  type="text"
+                  value={bankDetails.branch}
+                  onChange={(e) => handleBankChange("branch", e.target.value)}
+                  className="w-full p-2 rounded-lg border border-gray-300 dark:border-white/10 bg-gray-50 dark:bg-black/20 focus:ring-2 focus:ring-akatech-gold outline-none"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              <h4 className="font-bold text-gray-700 dark:text-gray-300 border-b border-gray-200 dark:border-white/10 pb-2">
+                Mobile Money
+              </h4>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Momo Number
+                </label>
+                <input
+                  type="text"
+                  value={bankDetails.mobileMoneyNumber}
+                  onChange={(e) =>
+                    handleBankChange("mobileMoneyNumber", e.target.value)
+                  }
+                  className="w-full p-2 rounded-lg border border-gray-300 dark:border-white/10 bg-gray-50 dark:bg-black/20 focus:ring-2 focus:ring-akatech-gold outline-none"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Momo Name
+                </label>
+                <input
+                  type="text"
+                  value={bankDetails.mobileMoneyName}
+                  onChange={(e) =>
+                    handleBankChange("mobileMoneyName", e.target.value)
+                  }
+                  className="w-full p-2 rounded-lg border border-gray-300 dark:border-white/10 bg-gray-50 dark:bg-black/20 focus:ring-2 focus:ring-akatech-gold outline-none"
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+
         {/* Cookie Management */}
         <div className="bg-white dark:bg-akatech-card p-6 rounded-xl border border-gray-200 dark:border-white/10 shadow-sm md:col-span-2">
           <div className="flex items-center gap-3 mb-6">
@@ -304,4 +444,3 @@ export const AdminSettings = () => {
     </div>
   );
 };
-

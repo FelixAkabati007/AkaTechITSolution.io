@@ -51,7 +51,52 @@ const sendLoginNotification = async (email, ip, userAgent) => {
   await sendEmail(email, subject, html);
 };
 
+const sendInvoiceEmail = async (to, invoiceData, pdfBuffer) => {
+  const subject = `Invoice ${invoiceData.referenceNumber} from AkaTech IT Solution`;
+  const html = `
+    <div style="font-family: Arial, sans-serif; color: #333;">
+      <h2>Invoice Details</h2>
+      <p>Dear Customer,</p>
+      <p>Please find attached your invoice <strong>${invoiceData.referenceNumber}</strong>.</p>
+      <p><strong>Amount Due:</strong> GH₵ ${invoiceData.amount}</p>
+      <p><strong>Due Date:</strong> ${new Date(invoiceData.dueDate).toLocaleDateString()}</p>
+      <p>Thank you for your business.</p>
+      <hr />
+      <p style="font-size: 12px; color: #666;">AkaTech IT Solution</p>
+    </div>
+  `;
+
+  if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
+    console.log("---------------------------------------------------");
+    console.log(`[Mock Email Service] To: ${to}`);
+    console.log(`[Mock Email Service] Subject: ${subject}`);
+    console.log(`[Mock Email Service] Attachment: Invoice PDF (${pdfBuffer ? pdfBuffer.length : 0} bytes)`);
+    console.log("---------------------------------------------------");
+    return;
+  }
+
+  try {
+    await transporter.sendMail({
+      from: process.env.EMAIL_USER,
+      to,
+      subject,
+      html,
+      attachments: [
+        {
+          filename: `Invoice-${invoiceData.referenceNumber}.pdf`,
+          content: pdfBuffer,
+          contentType: "application/pdf",
+        },
+      ],
+    });
+    console.log(`Invoice email sent to ${to}`);
+  } catch (error) {
+    console.error("Failed to send invoice email:", error);
+  }
+};
+
 module.exports = {
   sendEmail,
   sendLoginNotification,
+  sendInvoiceEmail,
 };

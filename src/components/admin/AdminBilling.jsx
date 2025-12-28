@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { Icons } from "@components/ui/Icons";
 import { localDataService } from "@lib/localData";
 import { io } from "socket.io-client";
@@ -20,6 +20,12 @@ export const AdminBilling = () => {
   });
   const [projects, setProjects] = useState([]);
 
+  // Search, Filter, Pagination
+  const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage] = useState(10);
+
   // New States for Real-time & Audit
   const [auditLogs, setAuditLogs] = useState([]);
   const [showAuditLogs, setShowAuditLogs] = useState(false);
@@ -29,7 +35,7 @@ export const AdminBilling = () => {
   const fetchAuditLogs = async () => {
     try {
       const token = localStorage.getItem("token");
-      const res = await fetch("http://localhost:3001/api/admin/audit-logs", {
+      const res = await fetch("/api/admin/audit-logs", {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (res.ok) {
@@ -44,7 +50,7 @@ export const AdminBilling = () => {
   const fetchInvoices = async () => {
     try {
       const token = localStorage.getItem("token");
-      const res = await fetch("http://localhost:3001/api/admin/invoices", {
+      const res = await fetch("/api/admin/invoices", {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (res.ok) {
@@ -80,7 +86,12 @@ export const AdminBilling = () => {
     fetchAuditLogs(); // Fetch initial logs
     setProjects(localDataService.getProjects());
 
-    const socket = io("http://localhost:3001");
+    const socket = io({
+      path: "/socket.io",
+      transports: ["websocket", "polling"],
+      withCredentials: true,
+      reconnectionAttempts: 5,
+    });
 
     socket.on("connect", () => {
       setSocketStatus("connected");
@@ -133,8 +144,8 @@ export const AdminBilling = () => {
     e.preventDefault();
     const token = localStorage.getItem("token");
     const url = isEditMode
-      ? `http://localhost:3001/api/admin/invoices/${editingId}`
-      : "http://localhost:3001/api/admin/invoices";
+      ? `/api/admin/invoices/${editingId}`
+      : "/api/admin/invoices";
     const method = isEditMode ? "PATCH" : "POST";
 
     try {
@@ -172,13 +183,10 @@ export const AdminBilling = () => {
       return;
     const token = localStorage.getItem("token");
     try {
-      const res = await fetch(
-        `http://localhost:3001/api/admin/invoices/${uuid}`,
-        {
-          method: "DELETE",
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      );
+      const res = await fetch(`/api/admin/invoices/${uuid}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      });
       if (res.ok) {
         addToast("Invoice deleted", "success");
         fetchInvoices();
@@ -229,6 +237,29 @@ export const AdminBilling = () => {
     return project ? project.title : "Unknown Project";
   };
 
+  // --- Pagination & Filtering Logic ---
+  const filteredInvoices = useMemo(() => {
+    return invoices.filter((invoice) => {
+      const projectTitle = getProjectTitle(invoice.projectId).toLowerCase();
+      const matchesSearch =
+        invoice.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        projectTitle.includes(searchQuery.toLowerCase()) ||
+        (invoice.description &&
+          invoice.description
+            .toLowerCase()
+            .includes(searchQuery.toLowerCase()));
+      const matchesStatus =
+        statusFilter === "all" || invoice.status === statusFilter;
+      return matchesSearch && matchesStatus;
+    });
+  }, [invoices, searchQuery, statusFilter, projects]);
+
+  const totalPages = Math.ceil(filteredInvoices.length / itemsPerPage);
+  const currentInvoices = filteredInvoices.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
+
   return (
     <div className="p-8 space-y-6">
       <div className="flex justify-between items-center">
@@ -263,6 +294,39 @@ export const AdminBilling = () => {
             <Icons.Plus className="w-4 h-4" /> Create Invoice
           </button>
         </div>
+      </div>
+
+      {/* Search & Filter Controls */}
+      <div className="flex flex-wrap items-center gap-4 bg-white dark:bg-akatech-card p-4 rounded-lg border border-gray-200 dark:border-white/10 shadow-sm">
+        <div className="relative flex-1 min-w-[200px]">
+          <Icons.Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+          <input
+            type="text"
+            placeholder="Search by ID, Project, or Description..."
+            className="w-full pl-9 pr-4 py-2 rounded-lg border border-gray-300 dark:border-white/10 bg-transparent text-gray-900 dark:text-white focus:ring-2 focus:ring-akatech-gold outline-none"
+            value={searchQuery}
+            onChange={(e) => {
+              setSearchQuery(e.target.value);
+              setCurrentPage(1);
+            }}
+          />
+        </div>
+        <select
+          className="px-4 py-2 rounded-lg border border-gray-300 dark:border-white/10 bg-transparent text-gray-900 dark:text-white focus:ring-2 focus:ring-akatech-gold outline-none"
+          value={statusFilter}
+          onChange={(e) => {
+            setStatusFilter(e.target.value);
+            setCurrentPage(1);
+          }}
+        >
+          <option value="all">All Statuses</option>
+          <option value="Requested">Requested</option>
+          <option value="Draft">Draft</option>
+          <option value="Sent">Sent</option>
+          <option value="Paid">Paid</option>
+          <option value="Overdue">Overdue</option>
+          <option value="Cancelled">Cancelled</option>
+        </select>
       </div>
 
       {showAuditLogs && (
@@ -328,7 +392,7 @@ export const AdminBilling = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200 dark:divide-white/5">
-              {invoices.map((invoice) => (
+              {currentInvoices.map((invoice) => (
                 <tr
                   key={invoice.id}
                   className="hover:bg-gray-50 dark:hover:bg-white/5 transition-colors"
@@ -398,6 +462,33 @@ export const AdminBilling = () => {
           </table>
         </div>
       </div>
+
+      {/* Pagination Controls */}
+      {totalPages > 1 && (
+        <div className="flex justify-between items-center mt-4">
+          <span className="text-sm text-gray-500 dark:text-gray-400">
+            Page {currentPage} of {totalPages}
+          </span>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+              disabled={currentPage === 1}
+              className="px-4 py-2 text-sm bg-gray-100 dark:bg-white/10 rounded-lg disabled:opacity-50 hover:bg-gray-200 dark:hover:bg-white/20 transition-colors"
+            >
+              Previous
+            </button>
+            <button
+              onClick={() =>
+                setCurrentPage((prev) => Math.min(prev + 1, totalPages))
+              }
+              disabled={currentPage === totalPages}
+              className="px-4 py-2 text-sm bg-gray-100 dark:bg-white/10 rounded-lg disabled:opacity-50 hover:bg-gray-200 dark:hover:bg-white/20 transition-colors"
+            >
+              Next
+            </button>
+          </div>
+        </div>
+      )}
 
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">

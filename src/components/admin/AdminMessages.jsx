@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { Icons } from "@components/ui/Icons";
 import { AnimatePresence, motion } from "framer-motion";
 import { format } from "date-fns";
@@ -6,7 +6,7 @@ import { io } from "socket.io-client";
 import { localDataService } from "@lib/localData";
 
 // --- API Helper ---
-const API_URL = "http://localhost:3001/api";
+const API_URL = "/api";
 
 /**
  * AdminMessages Component
@@ -19,6 +19,8 @@ export const AdminMessages = () => {
   const [selectedMessage, setSelectedMessage] = useState(null);
   const [filter, setFilter] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage] = useState(10);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [token, setToken] = useState(localStorage.getItem("token"));
@@ -143,7 +145,12 @@ export const AdminMessages = () => {
 
   // --- Real-time Sync ---
   useEffect(() => {
-    const socket = io("http://localhost:3001");
+    const socket = io({
+      path: "/socket.io",
+      transports: ["websocket", "polling"],
+      withCredentials: true,
+      reconnectionAttempts: 5,
+    });
 
     socket.on("connect", () => console.log("Socket connected"));
 
@@ -338,24 +345,32 @@ export const AdminMessages = () => {
     }
   };
 
-  const filteredMessages = messages.filter((msg) => {
-    // 1. Filter by Status/Type
-    if (filter === "unread" && msg.status !== "unread") return false;
-    if (filter === "sent" && msg.direction !== "outbound") return false;
+  const filteredMessages = useMemo(() => {
+    return messages.filter((msg) => {
+      // 1. Filter by Status/Type
+      if (filter === "unread" && msg.status !== "unread") return false;
+      if (filter === "sent" && msg.direction !== "outbound") return false;
 
-    // 2. Search Query
-    if (searchQuery) {
-      const q = searchQuery.toLowerCase();
-      return (
-        msg.subject?.toLowerCase().includes(q) ||
-        msg.name?.toLowerCase().includes(q) ||
-        msg.email?.toLowerCase().includes(q) ||
-        (msg.content || msg.message)?.toLowerCase().includes(q)
-      );
-    }
+      // 2. Search Query
+      if (searchQuery) {
+        const q = searchQuery.toLowerCase();
+        return (
+          msg.subject?.toLowerCase().includes(q) ||
+          msg.name?.toLowerCase().includes(q) ||
+          msg.email?.toLowerCase().includes(q) ||
+          (msg.content || msg.message)?.toLowerCase().includes(q)
+        );
+      }
 
-    return true;
-  });
+      return true;
+    });
+  }, [messages, filter, searchQuery]);
+
+  const totalPages = Math.ceil(filteredMessages.length / itemsPerPage);
+  const currentMessages = filteredMessages.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
 
   return (
     <div className="h-[calc(100vh-6rem)] flex flex-col md:flex-row gap-6 p-6 relative">
@@ -433,7 +448,7 @@ export const AdminMessages = () => {
             </div>
           ) : (
             <div className="divide-y divide-gray-200 dark:divide-white/5">
-              {filteredMessages.map((msg) => (
+              {currentMessages.map((msg) => (
                 <div
                   key={msg.id}
                   onClick={() => handleSelectMessage(msg)}
@@ -505,6 +520,33 @@ export const AdminMessages = () => {
             </div>
           )}
         </div>
+
+        {/* Pagination Controls */}
+        {totalPages > 1 && (
+          <div className="p-4 border-t border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-white/5 flex justify-between items-center">
+            <span className="text-xs text-gray-500 dark:text-gray-400">
+              Page {currentPage} of {totalPages}
+            </span>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+                disabled={currentPage === 1}
+                className="px-3 py-1 text-xs bg-white dark:bg-white/10 rounded border border-gray-200 dark:border-white/10 disabled:opacity-50 hover:bg-gray-50 dark:hover:bg-white/20 transition-colors"
+              >
+                Previous
+              </button>
+              <button
+                onClick={() =>
+                  setCurrentPage((prev) => Math.min(prev + 1, totalPages))
+                }
+                disabled={currentPage === totalPages}
+                className="px-3 py-1 text-xs bg-white dark:bg-white/10 rounded border border-gray-200 dark:border-white/10 disabled:opacity-50 hover:bg-gray-50 dark:hover:bg-white/20 transition-colors"
+              >
+                Next
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Message Detail View */}

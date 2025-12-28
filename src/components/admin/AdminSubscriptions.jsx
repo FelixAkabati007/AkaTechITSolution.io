@@ -3,7 +3,7 @@ import { Icons } from "@components/ui/Icons";
 import { PRICING_PACKAGES } from "../../lib/data";
 import { localDataService } from "@lib/localData";
 
-const API_URL = "http://localhost:3001/api";
+const API_URL = "/api";
 
 export const AdminSubscriptions = () => {
   const [subscriptions, setSubscriptions] = useState([]);

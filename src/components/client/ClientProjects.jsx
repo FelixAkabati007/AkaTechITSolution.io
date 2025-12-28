@@ -17,7 +17,7 @@ export const ClientProjects = ({ user }) => {
     try {
       // Use mock data directly since backend is likely not available in this env
       // const res = await fetch(
-      //   `http://localhost:3001/api/client/projects?email=${encodeURIComponent(
+      //   `/api/client/projects?email=${encodeURIComponent(
       //     user.email
       //   )}`
       // );
@@ -63,7 +63,7 @@ export const ClientProjects = ({ user }) => {
     if (!requestMessage.trim()) return;
 
     try {
-      const res = await fetch("http://localhost:3001/api/tickets", {
+      const res = await fetch("/api/tickets", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

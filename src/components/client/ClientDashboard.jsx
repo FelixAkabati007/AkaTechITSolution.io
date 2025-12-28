@@ -16,16 +16,8 @@ export const ClientDashboard = ({ user, setActiveTab }) => {
     const fetchData = async () => {
       try {
         const [projRes, tickRes] = await Promise.all([
-          fetch(
-            `http://localhost:3001/api/client/projects?email=${encodeURIComponent(
-              user.email
-            )}`
-          ),
-          fetch(
-            `http://localhost:3001/api/client/tickets?email=${encodeURIComponent(
-              user.email
-            )}`
-          ),
+          fetch(`/api/client/projects?email=${encodeURIComponent(user.email)}`),
+          fetch(`/api/client/tickets?email=${encodeURIComponent(user.email)}`),
         ]);
 
         let activeProjectsCount = 0;

@@ -76,7 +76,7 @@ export default function App() {
   useEffect(() => {
     const token = localStorage.getItem("token");
     if (token) {
-      fetch("http://localhost:3001/api/auth/me", {
+      fetch("/api/auth/me", {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -94,7 +94,7 @@ export default function App() {
   }, []);
 
   const handleLogin = (email, password) => {
-    return fetch("http://localhost:3001/api/login", {
+    return fetch("/api/login", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ username: email, password }),
@@ -138,7 +138,7 @@ export default function App() {
   };
 
   const handleGoogleLogin = (tokenResponse) => {
-    fetch("http://localhost:3001/api/signup/verify-google", {
+    fetch("/api/signup/verify-google", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",

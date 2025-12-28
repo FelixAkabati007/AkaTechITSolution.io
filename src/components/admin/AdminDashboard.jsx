@@ -1,9 +1,11 @@
 import React, { useEffect, useState } from "react";
 import { Icons } from "@components/ui/Icons";
 import { Card } from "@components/ui/Card";
-import { localDataService } from "@lib/localData";
+import { io } from "socket.io-client";
+import { useToast } from "@components/ui/ToastProvider";
 
 export const AdminDashboard = () => {
+  const { addToast } = useToast();
   const [stats, setStats] = useState({
     totalUsers: 0,
     activeProjects: 0,
@@ -14,33 +16,51 @@ export const AdminDashboard = () => {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        // Simulate network delay
-        await new Promise((resolve) => setTimeout(resolve, 500));
-
-        const projects = localDataService.getProjects();
-        const tickets = localDataService.getTickets();
-        const subscriptions = localDataService.getSubscriptions();
-
-        // Calculate revenue from subscriptions
-        const subscriptionRevenue = subscriptions.reduce((acc, sub) => {
-          const amount = parseFloat(sub.amount.replace(/,/g, "")) || 0;
-          return acc + amount;
-        }, 0);
-
-        setStats({
-          totalUsers: localDataService.getUsers().length,
-          activeProjects: projects.filter(
-            (p) => p.status !== "completed" && p.status !== "rejected"
-          ).length,
-          totalRevenue: subscriptionRevenue,
-          pendingTickets: tickets.filter(
-            (t) => t.status !== "resolved" && t.status !== "closed"
-          ).length,
+        const token = localStorage.getItem("token");
+        const response = await fetch("/api/admin/stats", {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
         });
+
+        if (!response.ok) throw new Error("Failed to fetch stats");
+
+        const data = await response.json();
+        setStats(data);
       } catch (e) {
         console.error("Dashboard fetch failed", e);
+        addToast("Failed to load dashboard stats", "error");
       }
     };
+
+    // Initialize Socket.io
+    const socket = io({
+      path: "/socket.io",
+      transports: ["websocket", "polling"],
+      withCredentials: true,
+      reconnectionAttempts: 5,
+    });
+
+    socket.on("connect", () => {
+      console.log("Connected to real-time updates");
+    });
+
+    socket.on("connect_error", (err) => {
+      console.error("Socket connection error:", err);
+    });
+
+    // Listen for new user registrations
+    socket.on("new_user", (data) => {
+      addToast(`New registration: ${data.user.name || "Client"}`, "success");
+      setStats((prev) => ({ ...prev, totalUsers: prev.totalUsers + 1 }));
+      // Trigger a data refresh
+      fetchData();
+    });
+
+    // Listen for generic dashboard updates
+    socket.on("dashboard_update", () => {
+      fetchData();
+    });
 
     fetchData();
 
@@ -59,6 +79,7 @@ export const AdminDashboard = () => {
     window.addEventListener("subscriptionUpdated", handleCustomEvent);
 
     return () => {
+      socket.disconnect();
       window.removeEventListener("storage", handleStorageChange);
       window.removeEventListener("subscriptionUpdated", handleCustomEvent);
     };
@@ -198,4 +219,3 @@ export const AdminDashboard = () => {
     </div>
   );
 };
-
