@@ -74,6 +74,39 @@ export const ClientLayout = ({ user, onLogout, onUserUpdate }) => {
     };
   }, [user]);
 
+  // Check for unpaid invoices and redirect
+  useEffect(() => {
+    const checkInvoices = async () => {
+      if (!user) return;
+      try {
+        const token = localStorage.getItem("token");
+        const res = await fetch("http://localhost:3001/api/client/invoices", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (res.ok) {
+          const invoices = await res.json();
+          // Find unpaid invoices (sent, requested, overdue, draft)
+          const unpaid = invoices.find(
+            (inv) =>
+              inv.status === "sent" ||
+              inv.status === "overdue" ||
+              inv.status === "requested"
+          );
+
+          if (unpaid) {
+            setActiveTab("billing");
+            // You could add a toast notification here if you have a toast system
+            console.log("Redirecting to billing due to unpaid invoice");
+          }
+        }
+      } catch (e) {
+        console.error("Failed to check invoices", e);
+      }
+    };
+
+    checkInvoices();
+  }, [user]);
+
   const unreadCount = notifications.filter((n) => !n.read).length;
 
   const markAsRead = async (id) => {

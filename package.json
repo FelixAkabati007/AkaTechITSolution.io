@@ -8,7 +8,11 @@
     "start:server": "node server/server.cjs",
     "build": "vite build",
     "preview": "vite preview",
-    "test": "vitest"
+    "test": "vitest",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "node server/db/migrate.cjs",
+    "db:push": "drizzle-kit push",
+    "db:studio": "drizzle-kit studio"
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.0.2",
@@ -32,6 +36,7 @@
     "framer-motion": "^12.23.26",
     "google-auth-library": "^10.5.0",
     "helmet": "^8.1.0",
+    "idb": "^8.0.3",
     "imap-simple": "^1.6.3",
     "jsonwebtoken": "^9.0.3",
     "jspdf": "^3.0.4",
@@ -56,7 +61,7 @@
     "@testing-library/user-event": "^14.6.1",
     "@types/node": "^25.0.3",
     "@vitejs/plugin-react": "^5.1.2",
-    "drizzle-kit": "^0.18.1",
+    "drizzle-kit": "^0.31.8",
     "happy-dom": "^20.0.11",
     "jsdom": "^27.3.0",
     "typescript": "^5.9.3",

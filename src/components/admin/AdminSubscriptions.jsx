@@ -14,6 +14,7 @@ export const AdminSubscriptions = () => {
   const [statusFilter, setStatusFilter] = useState("");
   const [notification, setNotification] = useState(null);
   const [token, setToken] = useState(localStorage.getItem("adminToken"));
+  const [processingId, setProcessingId] = useState(null);
 
   const fetchSubscriptions = async () => {
     setLoading(true);
@@ -51,6 +52,94 @@ export const AdminSubscriptions = () => {
     // Listen for updates from other tabs/windows if needed,
     // but main sync comes from API fetch on mount/update.
   }, [page, statusFilter]);
+
+  const handleApprove = async (sub) => {
+    if (processingId === sub.id) return;
+    setProcessingId(sub.id);
+
+    try {
+      const currentToken = localStorage.getItem("adminToken");
+
+      // 1. Approve Subscription
+      const res = await fetch(`${API_URL}/subscriptions/${sub.id}/action`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${currentToken}`,
+        },
+        body: JSON.stringify({ action: "approve" }),
+      });
+
+      if (!res.ok) throw new Error("Approval failed");
+
+      const data = await res.json();
+      const project = data.project;
+
+      // 2. Generate Invoice (Automated with Retries)
+      if (project) {
+        let attempts = 0;
+        const maxAttempts = 3;
+        let invoiceCreated = false;
+
+        while (attempts < maxAttempts && !invoiceCreated) {
+          try {
+            // 30s timeout signal
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 30000);
+
+            const invRes = await fetch(`${API_URL}/invoices/generate`, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${currentToken}`,
+              },
+              body: JSON.stringify({
+                userId: sub.userId,
+                projectId: project.id,
+                plan: sub.plan,
+              }),
+              signal: controller.signal,
+            });
+
+            clearTimeout(timeoutId);
+
+            if (invRes.ok) {
+              const invData = await invRes.json();
+              showNotification(
+                `Approved & Invoice ${invData.referenceNumber} generated`,
+                "success"
+              );
+              invoiceCreated = true;
+            } else {
+              throw new Error("Invoice generation failed");
+            }
+          } catch (e) {
+            attempts++;
+            console.error(`Invoice generation attempt ${attempts} failed:`, e);
+            if (attempts === maxAttempts) {
+              showNotification(
+                "Approved but invoice generation failed. Please try manually.",
+                "error"
+              );
+            } else {
+              // Exponential backoff: 1s, 2s, 4s...
+              await new Promise((r) =>
+                setTimeout(r, Math.pow(2, attempts) * 1000)
+              );
+            }
+          }
+        }
+      } else {
+        showNotification("Approved (No Project Created)", "success");
+      }
+
+      fetchSubscriptions();
+    } catch (err) {
+      showNotification(err.message || "Error approving subscription", "error");
+    } finally {
+      setProcessingId(null);
+    }
+  };
 
   const handleAction = async (id, action, details = {}) => {
     try {
@@ -251,10 +340,20 @@ export const AdminSubscriptions = () => {
                         {sub.status === "pending" && (
                           <>
                             <button
-                              onClick={() => handleAction(sub.id, "approve")}
-                              className="text-green-600 hover:text-green-900 font-bold text-xs uppercase"
+                              onClick={() => handleApprove(sub)}
+                              disabled={processingId === sub.id}
+                              className={`font-bold text-xs uppercase flex items-center gap-1 ${
+                                processingId === sub.id
+                                  ? "text-gray-400"
+                                  : "text-green-600 hover:text-green-900"
+                              }`}
                             >
-                              Approve
+                              {processingId === sub.id && (
+                                <div className="w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin"></div>
+                              )}
+                              {processingId === sub.id
+                                ? "Processing"
+                                : "Approve"}
                             </button>
                             <button
                               onClick={() => handleAction(sub.id, "reject")}

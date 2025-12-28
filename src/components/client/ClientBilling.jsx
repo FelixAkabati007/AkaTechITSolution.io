@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from "react";
 import { Icons } from "@components/ui/Icons";
-import { mockService } from "@lib/mockData";
 import { jsPDF } from "jspdf";
 import { useToast } from "@components/ui/ToastProvider";
 
@@ -26,6 +25,8 @@ export const ClientBilling = ({ user }) => {
     expiry: "",
     cvv: "",
   });
+  const [paymentMethod, setPaymentMethod] = useState("card");
+  const [paymentReference, setPaymentReference] = useState("");
 
   useEffect(() => {
     const fetchData = async () => {
@@ -33,66 +34,50 @@ export const ClientBilling = ({ user }) => {
         const token = localStorage.getItem("token");
         const headers = { Authorization: `Bearer ${token}` };
 
-        // Helper to safely fetch JSON
-        const safeFetch = async (url) => {
-          try {
-            const res = await fetch(url, { headers });
-            const contentType = res.headers.get("content-type");
-            if (
-              res.ok &&
-              contentType &&
-              contentType.includes("application/json")
-            ) {
-              return await res.json();
-            }
-          } catch (err) {
-            console.warn(`Fetch failed for ${url}, falling back to mock.`);
-          }
-          return null;
-        };
-
-        const [invData, projData] = await Promise.all([
-          safeFetch("/api/client/invoices"),
-          safeFetch(`/api/client/projects?email=${user.email}`),
+        const [invRes, projRes] = await Promise.all([
+          fetch("/api/client/invoices", { headers }),
+          fetch(`/api/client/projects?email=${user.email}`, { headers }),
         ]);
 
-        if (invData) {
-          const mapped = invData.map((inv) => ({
+        if (!invRes.ok) {
+          throw new Error("Failed to fetch invoices");
+        }
+
+        if (!projRes.ok) {
+          // Projects might be optional or handleable, but let's log it.
+          console.warn("Failed to fetch projects");
+        }
+
+        const invData = await invRes.json();
+        const projData = projRes.ok ? await projRes.json() : [];
+
+        const mapped = invData.map((inv) => {
+          let status = inv.status.charAt(0).toUpperCase() + inv.status.slice(1);
+          // Map technical statuses to user-friendly ones
+          if (status === "Sent" || status === "Requested") status = "Unpaid";
+
+          return {
             id: inv.referenceNumber || inv.id,
             projectId: inv.projectId,
             amount: parseFloat(inv.amount || 0),
-            status: inv.status.charAt(0).toUpperCase() + inv.status.slice(1),
+            status: status,
             date: new Date(inv.createdAt).toLocaleDateString(),
             dueDate: inv.dueDate
               ? new Date(inv.dueDate).toLocaleDateString()
               : "Pending",
             description: inv.description,
-          }));
-          setInvoices(mapped);
-          setFilteredInvoices(mapped);
-        } else {
-          // Fallback to mock if API fails
-          const data = mockService.getInvoices(user.id);
-          setInvoices(data);
-          setFilteredInvoices(data);
-        }
-
-        if (projData) {
-          setProjects(projData);
-        } else {
-          setProjects(mockService.getProjects());
-        }
+          };
+        });
+        setInvoices(mapped);
+        setFilteredInvoices(mapped);
+        setProjects(projData);
       } catch (e) {
-        console.error(e);
-        // Fallback
-        const data = mockService.getInvoices(user.id);
-        setInvoices(data);
-        setFilteredInvoices(data);
-        setProjects(mockService.getProjects());
+        console.error("Error fetching billing data:", e);
+        addToast("Failed to load billing data. Please try again.", "error");
       }
     };
     fetchData();
-  }, [user.id, user.email]);
+  }, [user.id, user.email, addToast]);
 
   useEffect(() => {
     if (filterStatus === "All") {
@@ -209,24 +194,54 @@ export const ClientBilling = ({ user }) => {
     setIsPaymentModalOpen(true);
   };
 
-  const processPayment = (e) => {
+  const processPayment = async (e) => {
     e.preventDefault();
     setIsProcessingPayment(true);
 
-    // Simulate payment processing
-    setTimeout(() => {
-      const updatedInvoice = { ...paymentInvoice, status: "Paid" };
-      const updatedInvoices = invoices.map((inv) =>
-        inv.id === updatedInvoice.id ? updatedInvoice : inv
-      );
+    try {
+      const token = localStorage.getItem("token");
+      const res = await fetch(`/api/client/invoices/${paymentInvoice.id}/pay`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          method: paymentMethod,
+          reference: paymentReference,
+          details: paymentDetails,
+        }),
+      });
 
-      setInvoices(updatedInvoices);
+      const data = await res.json();
+
+      if (res.ok) {
+        // Update local state
+        const updatedInvoices = invoices.map((inv) =>
+          inv.id === paymentInvoice.id ? { ...inv, status: "Paid" } : inv
+        );
+        setInvoices(updatedInvoices);
+        setFilteredInvoices((prev) =>
+          prev.map((inv) =>
+            inv.id === paymentInvoice.id ? { ...inv, status: "Paid" } : inv
+          )
+        );
+
+        addToast("Payment successful!", "success");
+        setIsPaymentModalOpen(false);
+        setPaymentInvoice(null);
+        setPaymentDetails({ cardNumber: "", expiry: "", cvv: "" });
+        setPaymentReference("");
+        setPaymentMethod("card");
+      } else {
+        addToast(data.error || "Payment failed", "error");
+      }
+    } catch (e) {
+      console.error(e);
+      addToast("Error processing payment", "error");
+    } finally {
       setIsProcessingPayment(false);
-      setIsPaymentModalOpen(false);
-      setPaymentInvoice(null);
-      setPaymentDetails({ cardNumber: "", expiry: "", cvv: "" });
-      alert("Payment successful!");
-    }, 2000);
+    }
   };
 
   const getStatusColor = (status) => {
@@ -407,67 +422,163 @@ export const ClientBilling = ({ user }) => {
               </div>
             </div>
 
+            <div className="flex gap-2 mb-4">
+              {["card", "momo", "bank"].map((method) => (
+                <button
+                  key={method}
+                  type="button"
+                  onClick={() => setPaymentMethod(method)}
+                  className={`flex-1 py-2 text-xs font-bold uppercase rounded-md border transition-all ${
+                    paymentMethod === method
+                      ? "border-akatech-gold bg-akatech-gold/10 text-akatech-gold"
+                      : "border-gray-200 dark:border-white/10 text-gray-500 hover:border-gray-300 dark:hover:border-white/20"
+                  }`}
+                >
+                  {method === "momo"
+                    ? "Mobile Money"
+                    : method === "bank"
+                    ? "Bank Transfer"
+                    : "Credit Card"}
+                </button>
+              ))}
+            </div>
+
             <form onSubmit={processPayment} className="space-y-4">
-              <div>
-                <label className="block text-xs font-bold uppercase text-gray-500 mb-1">
-                  Card Number
-                </label>
-                <div className="relative">
-                  <Icons.CreditCard className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                  <input
-                    type="text"
-                    required
-                    placeholder="0000 0000 0000 0000"
-                    className="w-full pl-10 pr-4 py-2 rounded-lg border border-gray-300 dark:border-white/10 bg-transparent text-gray-900 dark:text-white focus:ring-2 focus:ring-akatech-gold outline-none"
-                    value={paymentDetails.cardNumber}
-                    onChange={(e) =>
-                      setPaymentDetails({
-                        ...paymentDetails,
-                        cardNumber: e.target.value,
-                      })
-                    }
-                  />
+              {paymentMethod === "card" && (
+                <>
+                  <div>
+                    <label className="block text-xs font-bold uppercase text-gray-500 mb-1">
+                      Card Number
+                    </label>
+                    <div className="relative">
+                      <Icons.CreditCard className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                      <input
+                        type="text"
+                        required
+                        placeholder="0000 0000 0000 0000"
+                        className="w-full pl-10 pr-4 py-2 rounded-lg border border-gray-300 dark:border-white/10 bg-transparent text-gray-900 dark:text-white focus:ring-2 focus:ring-akatech-gold outline-none"
+                        value={paymentDetails.cardNumber}
+                        onChange={(e) =>
+                          setPaymentDetails({
+                            ...paymentDetails,
+                            cardNumber: e.target.value,
+                          })
+                        }
+                      />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xs font-bold uppercase text-gray-500 mb-1">
+                        Expiry Date
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        placeholder="MM/YY"
+                        className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-white/10 bg-transparent text-gray-900 dark:text-white focus:ring-2 focus:ring-akatech-gold outline-none"
+                        value={paymentDetails.expiry}
+                        onChange={(e) =>
+                          setPaymentDetails({
+                            ...paymentDetails,
+                            expiry: e.target.value,
+                          })
+                        }
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold uppercase text-gray-500 mb-1">
+                        CVV
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        placeholder="123"
+                        maxLength="3"
+                        className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-white/10 bg-transparent text-gray-900 dark:text-white focus:ring-2 focus:ring-akatech-gold outline-none"
+                        value={paymentDetails.cvv}
+                        onChange={(e) =>
+                          setPaymentDetails({
+                            ...paymentDetails,
+                            cvv: e.target.value,
+                          })
+                        }
+                      />
+                    </div>
+                  </div>
+                </>
+              )}
+
+              {paymentMethod === "momo" && (
+                <div className="space-y-4">
+                  <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg border border-blue-100 dark:border-blue-900/30">
+                    <h4 className="font-bold text-blue-900 dark:text-blue-100 mb-2">
+                      Instructions
+                    </h4>
+                    <p className="text-sm text-blue-800 dark:text-blue-200">
+                      Please send{" "}
+                      <strong>GH₵ {paymentInvoice.amount.toFixed(2)}</strong> to
+                      the following Mobile Money number:
+                    </p>
+                    <div className="my-3 font-mono text-lg font-bold text-center">
+                      054 123 4567
+                    </div>
+                    <p className="text-xs text-blue-700 dark:text-blue-300">
+                      Name: AkaTech Solutions Ltd.
+                    </p>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold uppercase text-gray-500 mb-1">
+                      Transaction ID / Reference
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="Enter Transaction ID"
+                      className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-white/10 bg-transparent text-gray-900 dark:text-white focus:ring-2 focus:ring-akatech-gold outline-none"
+                      value={paymentReference}
+                      onChange={(e) => setPaymentReference(e.target.value)}
+                    />
+                  </div>
                 </div>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-bold uppercase text-gray-500 mb-1">
-                    Expiry Date
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="MM/YY"
-                    className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-white/10 bg-transparent text-gray-900 dark:text-white focus:ring-2 focus:ring-akatech-gold outline-none"
-                    value={paymentDetails.expiry}
-                    onChange={(e) =>
-                      setPaymentDetails({
-                        ...paymentDetails,
-                        expiry: e.target.value,
-                      })
-                    }
-                  />
+              )}
+
+              {paymentMethod === "bank" && (
+                <div className="space-y-4">
+                  <div className="bg-purple-50 dark:bg-purple-900/20 p-4 rounded-lg border border-purple-100 dark:border-purple-900/30">
+                    <h4 className="font-bold text-purple-900 dark:text-purple-100 mb-2">
+                      Bank Details
+                    </h4>
+                    <div className="text-sm text-purple-800 dark:text-purple-200 space-y-1">
+                      <p>
+                        Bank: <strong>Standard Chartered</strong>
+                      </p>
+                      <p>
+                        Account Name: <strong>AkaTech Solutions</strong>
+                      </p>
+                      <p>
+                        Account Number: <strong>1234567890</strong>
+                      </p>
+                      <p>
+                        Branch: <strong>Osu</strong>
+                      </p>
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold uppercase text-gray-500 mb-1">
+                      Transaction Reference / Note
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="Enter Reference Number"
+                      className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-white/10 bg-transparent text-gray-900 dark:text-white focus:ring-2 focus:ring-akatech-gold outline-none"
+                      value={paymentReference}
+                      onChange={(e) => setPaymentReference(e.target.value)}
+                    />
+                  </div>
                 </div>
-                <div>
-                  <label className="block text-xs font-bold uppercase text-gray-500 mb-1">
-                    CVV
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="123"
-                    maxLength="3"
-                    className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-white/10 bg-transparent text-gray-900 dark:text-white focus:ring-2 focus:ring-akatech-gold outline-none"
-                    value={paymentDetails.cvv}
-                    onChange={(e) =>
-                      setPaymentDetails({
-                        ...paymentDetails,
-                        cvv: e.target.value,
-                      })
-                    }
-                  />
-                </div>
-              </div>
+              )}
 
               <div className="pt-4">
                 <button
@@ -532,10 +643,8 @@ export const ClientBilling = ({ user }) => {
                       {invoice.id}
                     </td>
                     <td className="px-6 py-4 font-medium text-gray-900 dark:text-white">
-                      {mockService
-                        .getProjects()
-                        .find((p) => p.id === invoice.projectId)?.title ||
-                        "Unknown Project"}
+                      {projects.find((p) => p.id === invoice.projectId)
+                        ?.title || "Unknown Project"}
                     </td>
                     <td className="px-6 py-4 text-gray-500 dark:text-gray-400">
                       {invoice.date}

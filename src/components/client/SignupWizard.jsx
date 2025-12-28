@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { GoogleLogin } from "@react-oauth/google";
 import { Icons } from "@components/ui/Icons";
 import { PRICING_PACKAGES } from "../../lib/data";
+import { identityService } from "../../lib/IdentityService";
 
 const API_URL = "http://localhost:3001/api";
 
@@ -59,14 +60,42 @@ const StepPackageSelection = ({ selectedPackage, onSelect }) => {
 
 const StepSignup = ({ onVerify, loading }) => {
   const [error, setError] = useState("");
+  const [termsAccepted, setTermsAccepted] = useState(false);
+  const [authMode, setAuthMode] = useState("login"); // 'login' or 'signup'
 
   return (
     <div className="max-w-md mx-auto space-y-6">
       <h2 className="text-2xl font-serif font-bold text-gray-900 dark:text-white mb-4 text-center">
-        Sign Up / Log In
+        {authMode === "signup" ? "Create Account" : "Welcome Back"}
       </h2>
+
+      <div className="flex bg-gray-100 dark:bg-white/5 p-1 rounded-lg mb-6">
+        <button
+          onClick={() => setAuthMode("login")}
+          className={`flex-1 py-2 text-sm font-bold rounded-md transition-all ${
+            authMode === "login"
+              ? "bg-white dark:bg-akatech-card text-akatech-gold shadow-sm"
+              : "text-gray-500 hover:text-gray-900 dark:hover:text-white"
+          }`}
+        >
+          Login
+        </button>
+        <button
+          onClick={() => setAuthMode("signup")}
+          className={`flex-1 py-2 text-sm font-bold rounded-md transition-all ${
+            authMode === "signup"
+              ? "bg-white dark:bg-akatech-card text-akatech-gold shadow-sm"
+              : "text-gray-500 hover:text-gray-900 dark:hover:text-white"
+          }`}
+        >
+          Sign Up
+        </button>
+      </div>
+
       <p className="text-gray-500 text-sm mb-6 text-center">
-        Please sign in with Google to verify your identity and continue.
+        {authMode === "signup"
+          ? "Sign up with Google to verify your identity and get started."
+          : "Please sign in with Google to continue."}
       </p>
 
       <div className="space-y-4">
@@ -77,7 +106,41 @@ const StepSignup = ({ onVerify, loading }) => {
           </div>
         )}
 
-        <div className="flex justify-center relative py-8">
+        {authMode === "signup" && (
+          <div className="flex items-start gap-3 p-4 bg-gray-50 dark:bg-white/5 rounded-lg border border-gray-200 dark:border-white/10">
+            <div className="flex items-center h-5">
+              <input
+                id="terms"
+                type="checkbox"
+                checked={termsAccepted}
+                onChange={(e) => setTermsAccepted(e.target.checked)}
+                className="w-4 h-4 text-akatech-gold border-gray-300 rounded focus:ring-akatech-gold"
+              />
+            </div>
+            <label
+              htmlFor="terms"
+              className="text-sm text-gray-600 dark:text-gray-300"
+            >
+              I agree to the{" "}
+              <a href="#" className="text-akatech-gold hover:underline">
+                Terms of Service
+              </a>{" "}
+              and{" "}
+              <a href="#" className="text-akatech-gold hover:underline">
+                Privacy Policy
+              </a>
+              . I understand that my account is subject to approval.
+            </label>
+          </div>
+        )}
+
+        <div
+          className={`flex justify-center relative py-8 ${
+            authMode === "signup" && !termsAccepted
+              ? "opacity-50 pointer-events-none"
+              : ""
+          }`}
+        >
           {loading && (
             <div className="absolute inset-0 z-10 bg-white/50 dark:bg-black/50 flex items-center justify-center rounded-full">
               <div className="w-6 h-6 border-2 border-akatech-gold border-t-transparent rounded-full animate-spin"></div>
@@ -88,11 +151,30 @@ const StepSignup = ({ onVerify, loading }) => {
               setError(""); // Clear previous errors
               onVerify("google", {
                 token: credentialResponse.credential,
+                mode: authMode,
               }).catch((err) => {
                 console.error("Google verify error:", err);
-                setError(
-                  err.message || "Google verification failed. Please try again."
-                );
+                if (
+                  err.message &&
+                  err.message.toLowerCase().includes("already exists")
+                ) {
+                  setError(
+                    <span>
+                      Account already exists.{" "}
+                      <button
+                        onClick={() => setAuthMode("login")}
+                        className="underline font-bold hover:text-red-800"
+                      >
+                        Switch to Login
+                      </button>
+                    </span>
+                  );
+                } else {
+                  setError(
+                    err.message ||
+                      "Google verification failed. Please try again."
+                  );
+                }
               });
             }}
             onError={() => {
@@ -101,31 +183,134 @@ const StepSignup = ({ onVerify, loading }) => {
             }}
             theme="filled_blue"
             shape="pill"
-            text="signin_with"
+            text={authMode === "signup" ? "signup_with" : "signin_with"}
             logo_alignment="left"
             width="250"
           />
         </div>
-
-        <p className="text-xs text-center text-gray-400">
-          By continuing, you agree to our Terms of Service and Privacy Policy.
-        </p>
       </div>
     </div>
   );
 };
 
-const StepDetails = ({ formData, setFormData, errors }) => {
+const StepDetails = ({
+  formData,
+  setFormData,
+  errors,
+  user,
+  packages,
+  selectedPackage,
+  onSelectPackage,
+}) => {
+  const [identityLoading, setIdentityLoading] = useState(false);
+  const [syncedFields, setSyncedFields] = useState([]);
+
+  const handleSyncIdentity = async () => {
+    setIdentityLoading(true);
+    try {
+      const data = await identityService.fetchIdentityData();
+      if (data) {
+        const updates = {};
+        const newSynced = [];
+
+        if (data.name && !user?.name) {
+          updates.name = data.name;
+          newSynced.push("name");
+        }
+        if (data.phone) {
+          const normalized = identityService.normalizePhone(data.phone);
+          if (!formData.phone) {
+            updates.phone = normalized;
+            newSynced.push("phone");
+          }
+        }
+
+        if (Object.keys(updates).length > 0) {
+          setFormData((prev) => ({ ...prev, ...updates }));
+          setSyncedFields(newSynced);
+        }
+      }
+    } catch (e) {
+      console.error("Identity sync failed:", e);
+    } finally {
+      setIdentityLoading(false);
+    }
+  };
+
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
+    if (syncedFields.includes(name)) {
+      setSyncedFields((prev) => prev.filter((f) => f !== name));
+    }
   };
 
   return (
     <div className="max-w-2xl mx-auto space-y-6">
-      <h2 className="text-2xl font-serif font-bold text-gray-900 dark:text-white mb-4">
-        Project Details
-      </h2>
+      <div className="flex justify-between items-center mb-4">
+        <h2 className="text-2xl font-serif font-bold text-gray-900 dark:text-white">
+          Project Details
+        </h2>
+        <button
+          type="button"
+          onClick={handleSyncIdentity}
+          disabled={identityLoading}
+          className="text-xs font-bold uppercase text-akatech-gold hover:text-akatech-goldDark flex items-center gap-2"
+        >
+          {identityLoading ? (
+            <div className="w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin"></div>
+          ) : (
+            <Icons.RefreshCw size={14} />
+          )}
+          {identityLoading ? "Syncing..." : "Sync Profile"}
+        </button>
+      </div>
+
+      {user && (
+        <div className="bg-blue-50 dark:bg-blue-900/20 text-blue-800 dark:text-blue-300 p-4 rounded-lg text-sm mb-6 flex items-center gap-3">
+          <Icons.Info className="w-5 h-5 flex-shrink-0" />
+          <div>
+            <span className="font-bold">Identity Verified.</span> Your name and
+            email have been locked for security.
+          </div>
+        </div>
+      )}
+
+      <div className="bg-white dark:bg-akatech-card border border-gray-200 dark:border-white/10 rounded-xl p-6 mb-8">
+        <label className="block text-xs font-bold uppercase text-gray-500 mb-3">
+          Selected Package
+        </label>
+        <div className="flex flex-col md:flex-row gap-4 items-start md:items-center justify-between">
+          <div>
+            <div className="font-bold text-lg text-gray-900 dark:text-white">
+              {selectedPackage?.name || "No Package Selected"}
+            </div>
+            <div className="text-akatech-gold font-bold">
+              {selectedPackage ? `GH₵ ${selectedPackage.price}` : "-"}
+            </div>
+            <div className="text-xs text-gray-500 mt-1">
+              {selectedPackage?.description}
+            </div>
+          </div>
+          <select
+            value={selectedPackage?.name || ""}
+            onChange={(e) => {
+              const pkg = packages.find((p) => p.name === e.target.value);
+              if (pkg) onSelectPackage(pkg);
+            }}
+            className="w-full md:w-auto bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-lg px-4 py-2 text-sm text-gray-900 dark:text-white focus:outline-none focus:border-akatech-gold"
+          >
+            <option value="" disabled>
+              Change Package
+            </option>
+            {packages.map((pkg) => (
+              <option key={pkg.name} value={pkg.name}>
+                {pkg.name} - GH₵ {pkg.price}
+              </option>
+            ))}
+          </select>
+        </div>
+      </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div>
@@ -137,11 +322,14 @@ const StepDetails = ({ formData, setFormData, errors }) => {
             name="name"
             value={formData.name}
             onChange={handleChange}
+            disabled={!!user?.name}
             className={`w-full bg-white dark:bg-akatech-card border ${
               errors.name
                 ? "border-red-500"
+                : syncedFields.includes("name")
+                ? "border-green-400 bg-green-50 dark:bg-green-900/10"
                 : "border-gray-200 dark:border-white/10"
-            } rounded-lg px-4 py-3 text-gray-900 dark:text-white focus:outline-none focus:border-akatech-gold`}
+            } rounded-lg px-4 py-3 text-gray-900 dark:text-white focus:outline-none focus:border-akatech-gold disabled:opacity-50 disabled:cursor-not-allowed`}
             placeholder="John Doe"
           />
           {errors.name && (
@@ -161,6 +349,8 @@ const StepDetails = ({ formData, setFormData, errors }) => {
             className={`w-full bg-white dark:bg-akatech-card border ${
               errors.phone
                 ? "border-red-500"
+                : syncedFields.includes("phone")
+                ? "border-green-400 bg-green-50 dark:bg-green-900/10"
                 : "border-gray-200 dark:border-white/10"
             } rounded-lg px-4 py-3 text-gray-900 dark:text-white focus:outline-none focus:border-akatech-gold`}
             placeholder="+233 20 000 0000"
@@ -168,6 +358,20 @@ const StepDetails = ({ formData, setFormData, errors }) => {
           {errors.phone && (
             <p className="text-red-500 text-xs mt-1">{errors.phone}</p>
           )}
+        </div>
+
+        <div className="md:col-span-2">
+          <label className="block text-xs font-bold uppercase text-gray-500 mb-1">
+            Email Address *
+          </label>
+          <input
+            type="email"
+            name="email"
+            value={formData.email}
+            disabled={!!user?.email}
+            className="w-full bg-white dark:bg-akatech-card border border-gray-200 dark:border-white/10 rounded-lg px-4 py-3 text-gray-900 dark:text-white focus:outline-none focus:border-akatech-gold disabled:opacity-50 disabled:cursor-not-allowed"
+            placeholder="john@example.com"
+          />
         </div>
 
         <div className="md:col-span-2">
@@ -363,7 +567,7 @@ export const SignupWizard = ({ initialPlan, onBack, onComplete }) => {
       }
     } catch (err) {
       console.error("Verification error:", err);
-      // Ensure we don't crash the app if something goes wrong
+      throw err;
     } finally {
       setLoading(false);
     }
@@ -494,15 +698,21 @@ export const SignupWizard = ({ initialPlan, onBack, onComplete }) => {
                   formData={formData}
                   setFormData={setFormData}
                   errors={formErrors}
+                  user={
+                    emailVerified
+                      ? { name: formData.name, email: formData.email }
+                      : null
+                  }
+                  packages={PRICING_PACKAGES}
+                  selectedPackage={selectedPackage}
+                  onSelectPackage={setSelectedPackage}
                 />
-                <div className="flex justify-end mt-6 max-w-2xl mx-auto">
-                  <button
-                    onClick={handleDetailsNext}
-                    className="bg-akatech-gold text-white px-8 py-3 rounded-xl font-bold uppercase tracking-widest hover:bg-akatech-goldDark transition-colors"
-                  >
-                    Next Step
-                  </button>
-                </div>
+                <button
+                  onClick={handleDetailsNext}
+                  className="w-full bg-akatech-gold text-white py-4 rounded-xl font-bold uppercase tracking-widest hover:bg-akatech-goldDark transition-colors mt-8"
+                >
+                  Continue to Confirmation
+                </button>
               </div>
             )}
             {step === 4 && (

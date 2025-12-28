@@ -14,31 +14,47 @@ export const ConnectionStatus = () => {
 
     // Periodic heartbeat check
     const checkConnection = async () => {
+      const controller = new AbortController();
+      const signal = controller.signal;
+
       try {
-        // Using a no-cache HEAD request to the current origin
-        const response = await fetch("/", {
+        // Using a no-cache HEAD request to a static asset
+        const response = await fetch("/favicon.png", {
           method: "HEAD",
           cache: "no-store",
+          signal,
         });
 
         if (response.ok) {
           setIsOnline(true);
         }
       } catch (error) {
-        setIsOnline(false);
+        if (error.name !== "AbortError") {
+          setIsOnline(false);
+        }
       }
+      return controller;
     };
 
     // Check immediately on mount
-    checkConnection();
+    let activeController = null;
+    checkConnection().then((controller) => {
+      activeController = controller;
+    });
 
     // Check every 30 seconds
-    const intervalId = setInterval(checkConnection, 30000);
+    const intervalId = setInterval(() => {
+      if (activeController) activeController.abort();
+      checkConnection().then((controller) => {
+        activeController = controller;
+      });
+    }, 30000);
 
     return () => {
       window.removeEventListener("online", updateStatus);
       window.removeEventListener("offline", updateStatus);
       clearInterval(intervalId);
+      if (activeController) activeController.abort();
     };
   }, []);
 
