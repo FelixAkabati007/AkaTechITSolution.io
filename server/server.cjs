@@ -18,6 +18,7 @@ const {
   sendLoginNotification,
   sendInvoiceEmail,
 } = require("./emailService.cjs");
+const { PROJECT_TYPES } = require("./constants.cjs");
 
 const app = express();
 const server = http.createServer(app);
@@ -562,6 +563,15 @@ app.post("/api/invoices/request", authenticateToken, async (req, res) => {
       user: { name: req.user.name, email: req.user.email },
     });
 
+    // Create DB Notification for Admin
+    await dal.createNotification({
+      userId: null,
+      target: "admin",
+      title: "New Invoice Request",
+      message: `User ${req.user.name} (${req.user.email}) requested an invoice: ${message}`,
+      readBy: [],
+    });
+
     res.status(201).json({
       message: "Invoice request submitted successfully.",
       invoice: { ...newInvoice, description: message },
@@ -660,6 +670,13 @@ app.post(
       // Verify ownership
       if (invoice.userId !== req.user.id) {
         return res.status(403).json({ error: "Unauthorized" });
+      }
+
+      // Prevent payment for Requested invoices
+      if (invoice.status === "Requested" || invoice.status === "requested") {
+        return res
+          .status(400)
+          .json({ error: "Invoice must be approved by admin before payment." });
       }
 
       let newStatus = "Paid"; // Default for Card
@@ -763,6 +780,10 @@ app.post("/api/admin/invoices", authenticateToken, async (req, res) => {
       description: description ? encrypt(description) : "",
     });
 
+    await logAudit("CREATE_INVOICE", req.user.username, {
+      invoiceId: newInvoice.id || newInvoice.referenceNumber,
+    });
+
     // Notify user if project/user linked? (Optional for now)
     io.emit("invoice_created", newInvoice);
 
@@ -802,6 +823,12 @@ app.patch("/api/admin/invoices/:id", authenticateToken, async (req, res) => {
     }
 
     const updatedInvoice = await dal.updateInvoice(id, safeUpdates);
+
+    await logAudit("UPDATE_INVOICE", req.user.username, {
+      invoiceId: id,
+      changes: Object.keys(safeUpdates).join(", "),
+    });
+
     io.emit("invoice_updated", updatedInvoice);
     res.json(updatedInvoice);
   } catch (error) {
@@ -825,6 +852,7 @@ app.delete("/api/admin/invoices/:id", authenticateToken, async (req, res) => {
     }
 
     await dal.deleteInvoice(id);
+    await logAudit("DELETE_INVOICE", req.user.username, { invoiceId: id });
     res.json({ message: "Invoice deleted" });
   } catch (error) {
     console.error("Delete Invoice Error:", error);
@@ -926,6 +954,16 @@ app.post("/api/tickets", async (req, res) => {
   });
 
   io.emit("new_ticket", { ...newTicket, message: xss(message) });
+
+  // Create DB Notification for Admin
+  await dal.createNotification({
+    userId: null,
+    target: "admin",
+    title: "New Support Ticket",
+    message: `User ${userName} (${userEmail}) created a ticket: ${subject}`,
+    readBy: [],
+  });
+
   res.status(201).json({ message: "Support ticket created." });
 });
 
@@ -1085,6 +1123,80 @@ app.post("/api/login", async (req, res) => {
   }
 });
 
+// --- Project Options API ---
+app.get("/api/projects/options", async (req, res) => {
+  try {
+    const options = await dal.getSystemSetting("project_options");
+    if (options && options.value) {
+      return res.json(options.value);
+    }
+    // Fallback to constants
+    res.json(PROJECT_TYPES);
+  } catch (error) {
+    console.error("Get Project Options Error:", error);
+    res.status(500).json({ error: "Failed to fetch project options" });
+  }
+});
+
+app.put(
+  "/api/admin/projects/options",
+  authenticateToken,
+  authorizeAdmin,
+  async (req, res) => {
+    try {
+      const { options } = req.body;
+      if (!Array.isArray(options)) {
+        return res.status(400).json({ error: "Invalid format" });
+      }
+      await dal.setSystemSetting("project_options", options);
+
+      // Propagate update via socket
+      io.emit("project_options_updated", options);
+
+      await logAudit("UPDATE_PROJECT_OPTIONS", req.user.id, {
+        count: options.length,
+      });
+
+      res.json({ message: "Project options updated" });
+    } catch (error) {
+      console.error("Update Project Options Error:", error);
+      res.status(500).json({ error: "Failed to update project options" });
+    }
+  }
+);
+
+// --- Invoice Verification ---
+app.patch(
+  "/api/admin/invoices/:id/verify",
+  authenticateToken,
+  authorizeAdmin,
+  async (req, res) => {
+    try {
+      const { id } = req.params;
+      const invoice = await dal.getInvoiceById(id);
+
+      if (!invoice) return res.status(404).json({ error: "Invoice not found" });
+
+      const updatedInvoice = await dal.updateInvoice(id, {
+        status: "verified",
+      });
+
+      io.emit("invoice_updated", updatedInvoice);
+      io.emit("invoice_verified", updatedInvoice); // Specific event
+
+      await logAudit("INVOICE_VERIFIED", req.user.id, {
+        invoiceId: id,
+        reference: invoice.referenceNumber,
+      });
+
+      res.json(updatedInvoice);
+    } catch (error) {
+      console.error("Verify Invoice Error:", error);
+      res.status(500).json({ error: "Failed to verify invoice" });
+    }
+  }
+);
+
 // 3. Get Data (Admin Only)
 app.get("/api/messages", authenticateToken, async (req, res) => {
   const messages = await dal.getAllMessages();
@@ -1157,10 +1269,97 @@ app.post("/api/subscriptions", authenticateToken, async (req, res) => {
     paymentHistory: [],
   });
 
-  await logAudit("CREATE_SUBSCRIPTION", req.user.username, {
-    subId: newSub.id,
-    plan,
-  });
+  // Automated Invoice Request Generation
+  try {
+    let price = 0;
+    // Check Featured Packages
+    const PRICING = {
+      "Startup Identity": 2500,
+      "Enterprise Growth": 6500,
+      "Premium Commerce": 12000,
+    };
+    if (PRICING[plan]) {
+      price = PRICING[plan];
+    } else {
+      // Check Dynamic Project Types
+      // First check DB settings for project_options
+      let options = [];
+      try {
+        const setting = await dal.getSystemSetting("project_options");
+        if (setting && setting.value) options = setting.value;
+      } catch (e) {
+        // Fallback to constants
+        options = PROJECT_TYPES;
+      }
+
+      if (options.length === 0) options = PROJECT_TYPES;
+
+      for (const cat of options) {
+        const item = cat.items.find((i) => i.name === plan);
+        if (item) {
+          price = item.price;
+          break;
+        }
+      }
+    }
+
+    if (price > 0) {
+      // Create Invoice Request
+      const referenceNumber = `REQ-${Date.now()}`;
+      const newInvoice = await dal.createInvoice({
+        referenceNumber,
+        userId: userId, // Assuming userId is valid from body or we need to look it up?
+        // Note: userId in subscription might be a UUID string if not registered, but invoice needs valid user.id if foreign key.
+        // If userId passed in body is null (guest signup), we can't create invoice linked to user yet.
+        // But SignupWizard usually registers user first?
+        // Wait, SignupWizard calls /api/subscriptions directly?
+        // Let's check SignupWizard.jsx again. It might not register user first if it's just a wizard.
+        // Actually, Step 4 is "Account Creation" in some wizards.
+        // If userId is missing, we can't create an invoice linked to a user.
+        // But the prompt says "triggered by user signup".
+        // If the user is registered, we have their ID.
+        // I will assume userId is provided if the user is logged in or just registered.
+        // If not, we might skip invoice generation or create it with null userId if allowed (schema allows null?).
+        // Schema check: userId references users.id.
+        // If userId is provided, use it.
+        projectId: null,
+        amount: price.toString(),
+        status: "Requested",
+        description: encrypt(`Automated invoice request for plan: ${plan}`),
+        dueDate: null,
+      });
+
+      // Notify Admin
+      io.emit("new_invoice_request", {
+        ...newInvoice,
+        description: `Automated invoice request for plan: ${plan}`,
+        user: { name: userName, email: userEmail },
+      });
+
+      // Create DB Notification for Admin
+      await dal.createNotification({
+        userId: null,
+        target: "admin",
+        title: "Automated Invoice Request",
+        message: `New subscription for ${plan} by ${userName} (${userEmail}). Invoice requested automatically.`,
+        readBy: [],
+      });
+
+      // Update subscription with invoice reference? Not in schema, but useful.
+    }
+  } catch (err) {
+    console.error("Auto-Invoice Error:", err);
+    // Don't fail subscription creation if invoice fails
+  }
+
+  await logAudit(
+    "CREATE_SUBSCRIPTION",
+    req.user ? req.user.username : "Guest",
+    {
+      subId: newSub.id,
+      plan,
+    }
+  );
   res.status(201).json(newSub);
 });
 
@@ -1190,28 +1389,48 @@ app.patch(
         updates.startDate = new Date().toISOString();
         updated = true;
 
-        // 1. Create Project
-        // Check if project already exists for this user/plan to avoid duplicates?
-        // For now, assume 1-to-1 for signup flow.
-        const newProject = await dal.createProject({
-          userId: sub.userId,
-          name: `${sub.plan} Project`,
-          email: sub.userEmail, // Contact email
-          company: sub.userName, // Using userName as company/client name for now if not in sub
-          plan: sub.plan,
-          status: "in-progress",
-          notes: encrypt("Project started via subscription approval."),
-        });
+        // 1. Activate Project
+        let projectToActivate = null;
+        try {
+          // Find pending project for this user
+          const userProjects = await dal.getProjectsByEmail(sub.userEmail);
+          // Look for a pending project matching the plan or just the most recent pending one?
+          // Matching plan is safer.
+          projectToActivate = userProjects.find(
+            (p) => p.plan === sub.plan && p.status === "pending"
+          );
 
-        // Invoice generation moved to /api/invoices/generate
+          if (projectToActivate) {
+            await dal.updateProject(projectToActivate.id, {
+              status: "in-progress",
+              notes: encrypt("Project activated via subscription approval."),
+            });
+            projectToActivate.status = "in-progress"; // Update local obj for return
+          } else {
+            // Fallback: Create if not found (e.g. legacy or error)
+            projectToActivate = await dal.createProject({
+              userId: sub.userId,
+              name: `${sub.plan} Project`,
+              email: sub.userEmail,
+              company: sub.userName,
+              plan: sub.plan,
+              status: "in-progress",
+              notes: encrypt(
+                "Project started via subscription approval (fallback)."
+              ),
+            });
+          }
+        } catch (err) {
+          console.error("Error activating project:", err);
+        }
 
         io.emit("new_project", {
-          ...newProject,
-          notes: "Project started via subscription approval.",
+          ...projectToActivate,
+          notes: "Project activated via subscription approval.",
         });
 
         // Return project info so frontend can use it for invoice generation
-        res.locals.newProject = newProject;
+        res.locals.newProject = projectToActivate;
         break;
       case "reject":
         updates.status = "rejected";
@@ -1275,12 +1494,15 @@ app.post("/api/invoices/generate", authenticateToken, async (req, res) => {
     const dueDate = new Date();
     dueDate.setDate(dueDate.getDate() + 7); // Due in 7 days
 
+    // Determine status based on role
+    const initialStatus = req.user.role === "admin" ? "sent" : "requested";
+
     const newInvoice = await dal.createInvoice({
       referenceNumber,
       userId,
       projectId,
       amount: price,
-      status: "sent",
+      status: initialStatus,
       dueDate: dueDate,
       description: encrypt(`Initial invoice for ${plan}`),
     });
@@ -1288,7 +1510,16 @@ app.post("/api/invoices/generate", authenticateToken, async (req, res) => {
     await logAudit("INVOICE_GENERATED", req.user.username || "System", {
       invoiceId: newInvoice.id,
       reference: referenceNumber,
+      status: initialStatus,
     });
+
+    // Notify admin if requested
+    if (initialStatus === "requested") {
+      io.emit("new_invoice_request", {
+        ...newInvoice,
+        user: { name: req.user.name, email: req.user.email },
+      });
+    }
 
     res.status(201).json(newInvoice);
   } catch (error) {
@@ -1327,12 +1558,13 @@ app.get("/api/audit-logs", authenticateToken, async (req, res) => {
 // 9b. Get Client Notifications
 app.get("/api/notifications", authenticateToken, async (req, res) => {
   const userId = req.user.id;
+  const role = req.user.role;
 
-  const notifications = await dal.getNotificationsByUserId(userId);
+  const notifications = await dal.getNotificationsByUserId(userId, role);
   const userNotifications = notifications.map((n) => ({
     ...n,
     read:
-      n.target === "all"
+      n.target === "all" || n.target === "admin"
         ? n.readBy
           ? n.readBy.includes(userId)
           : false

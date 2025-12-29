@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { Icons } from "@components/ui/Icons";
 import { jsPDF } from "jspdf";
 import { useToast } from "@components/ui/ToastProvider";
-import { io } from "socket.io-client";
+import { useSyncStatus } from "@components/ui/SyncStatusProvider";
 import { PROJECT_TYPES } from "../../lib/constants";
 
 export const ClientBilling = ({ user }) => {
@@ -23,6 +23,7 @@ export const ClientBilling = ({ user }) => {
     projectId: "",
   });
   const [projects, setProjects] = useState([]);
+  const [editingInvoiceId, setEditingInvoiceId] = useState(null);
   const [isSubmittingRequest, setIsSubmittingRequest] = useState(false);
   const [paymentDetails, setPaymentDetails] = useState({
     cardNumber: "",
@@ -96,40 +97,51 @@ export const ClientBilling = ({ user }) => {
 
   useEffect(() => {
     fetchData();
+  }, [fetchData]);
 
-    const socket = io({
-      path: "/socket.io",
-      transports: ["websocket", "polling"],
-      withCredentials: true,
-      reconnectionAttempts: 5,
-    });
+  useEffect(() => {
+    fetch("/api/projects/options")
+      .then((res) => {
+        if (res.ok) return res.json();
+        throw new Error("Failed to fetch project options");
+      })
+      .then((data) => {
+        if (data && Array.isArray(data)) {
+          setProjectOptions(data);
+        }
+      })
+      .catch((e) => console.error(e));
+  }, []);
 
-    socket.on("connect", () => {
-      setSocketStatus("connected");
-    });
+  useEffect(() => {
+    if (!socket) return;
 
-    socket.on("disconnect", () => {
-      setSocketStatus("disconnected");
-    });
-
-    socket.on("connect_error", () => {
-      setSocketStatus("error");
-    });
-
-    socket.on("invoice_created", () => {
+    const handleInvoiceCreated = () => {
       fetchData();
       addToast("New invoice received", "info");
-    });
+    };
 
-    socket.on("invoice_updated", () => {
+    const handleInvoiceUpdated = () => {
       fetchData();
       addToast("Invoice updated", "info");
-    });
+    };
+
+    const handleProjectOptionsUpdated = (data) => {
+      if (data && Array.isArray(data)) {
+        setProjectOptions(data);
+      }
+    };
+
+    socket.on("invoice_created", handleInvoiceCreated);
+    socket.on("invoice_updated", handleInvoiceUpdated);
+    socket.on("project_options_updated", handleProjectOptionsUpdated);
 
     return () => {
-      socket.disconnect();
+      socket.off("invoice_created", handleInvoiceCreated);
+      socket.off("invoice_updated", handleInvoiceUpdated);
+      socket.off("project_options_updated", handleProjectOptionsUpdated);
     };
-  }, [fetchData, addToast]);
+  }, [socket, fetchData, addToast]);
 
   const filteredInvoices = useMemo(() => {
     return invoices.filter((inv) => {
@@ -367,17 +379,27 @@ export const ClientBilling = ({ user }) => {
 
     try {
       const token = localStorage.getItem("token");
+      const payload = {
+        method: paymentMethod,
+        reference: paymentReference,
+        details:
+          paymentMethod === "card"
+            ? {
+                // PCI-DSS: Never send full card details to own server unless compliant.
+                // Sending only non-sensitive data for record keeping.
+                last4: paymentDetails.cardNumber.slice(-4),
+                expiry: paymentDetails.expiry,
+              }
+            : paymentDetails,
+      };
+
       const res = await fetch(`/api/client/invoices/${paymentInvoice.id}/pay`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({
-          method: paymentMethod,
-          reference: paymentReference,
-          details: paymentDetails,
-        }),
+        body: JSON.stringify(payload),
       });
 
       const data = await res.json();
@@ -411,9 +433,12 @@ export const ClientBilling = ({ user }) => {
       case "Paid":
         return "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400";
       case "Unpaid":
+      case "Sent": // Treat Sent as Unpaid for color
         return "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400";
       case "Overdue":
         return "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400";
+      case "Requested":
+        return "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400";
       default:
         return "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-400";
     }
@@ -524,7 +549,7 @@ export const ClientBilling = ({ user }) => {
                       ))}
                     </optgroup>
                   )}
-                  {PROJECT_TYPES.map((cat) => (
+                  {projectOptions.map((cat) => (
                     <optgroup key={cat.category} label={cat.category}>
                       {cat.items.map((item) => (
                         <option
@@ -863,13 +888,22 @@ export const ClientBilling = ({ user }) => {
                       </span>
                     </td>
                     <td className="px-6 py-4 text-right space-x-2">
-                      {invoice.status === "Unpaid" && (
+                      {(invoice.status === "Unpaid" ||
+                        invoice.status === "Sent") && (
                         <button
                           onClick={() => handlePayNow(invoice)}
                           className="text-green-600 hover:text-green-900 font-bold text-xs uppercase"
                         >
                           Pay
                         </button>
+                      )}
+                      {invoice.status === "Requested" && (
+                        <span
+                          className="text-xs text-gray-500 italic mr-2"
+                          title="Waiting for admin approval"
+                        >
+                          Pending Approval
+                        </span>
                       )}
                       <button
                         onClick={() => handleDownloadInvoice(invoice)}
@@ -882,28 +916,14 @@ export const ClientBilling = ({ user }) => {
                         invoice.status === "Draft") && (
                         <>
                           <button
-                            onClick={() => {
-                              /* Edit logic */
-                              setRequestData({
-                                subject: "Edit Invoice Request",
-                                message: invoice.description,
-                                projectId: invoice.projectId,
-                              });
-                              setIsModalOpen(true);
-                            }}
+                            onClick={() => handleEditRequest(invoice)}
                             className="text-blue-400 hover:text-blue-600 transition-colors"
                             title="Edit"
                           >
                             <Icons.Edit className="w-4 h-4" />
                           </button>
                           <button
-                            onClick={() => {
-                              /* Delete logic - probably not implemented in API for client yet */
-                              addToast(
-                                "Delete functionality pending API support",
-                                "info"
-                              );
-                            }}
+                            onClick={() => handleDeleteRequest(invoice.id)}
                             className="text-red-400 hover:text-red-600 transition-colors"
                             title="Delete"
                           >

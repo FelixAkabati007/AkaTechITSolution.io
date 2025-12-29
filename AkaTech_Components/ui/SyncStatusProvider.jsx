@@ -5,9 +5,7 @@ import { Icons } from "@components/ui/Icons";
 
 const SyncStatusContext = createContext();
 
-const SOCKET_URL =
-  import.meta.env.VITE_API_URL ||
-  (window.location.hostname === "localhost" ? "/" : "/");
+const SOCKET_URL = import.meta.env.VITE_API_URL || "http://localhost:3001";
 
 export const SyncStatusProvider = ({ children }) => {
   const [status, setStatus] = useState("connecting"); // connecting, synced, syncing, error, offline

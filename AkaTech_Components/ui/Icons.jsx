@@ -18,6 +18,7 @@ import {
   Quote,
   CheckCircle, // For Success
   Info,
+  RefreshCw,
   Plus,
   Settings,
   FileText,
@@ -80,6 +81,7 @@ export const Icons = {
   Success: CheckCircle, // Mapping Success to CheckCircle
   CheckCircle,
   Info,
+  RefreshCw,
   Plus,
   Settings,
   LifeBuoy,

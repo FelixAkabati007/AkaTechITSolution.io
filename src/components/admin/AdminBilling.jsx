@@ -1,13 +1,14 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { Icons } from "@components/ui/Icons";
 import { localDataService } from "@lib/localData";
-import { io } from "socket.io-client";
+import { useSyncStatus } from "@components/ui/SyncStatusProvider";
 import { useToast } from "@components/ui/ToastProvider";
 import { jsPDF } from "jspdf";
 import { PROJECT_TYPES } from "../../lib/constants";
 
 export const AdminBilling = () => {
   const { addToast } = useToast();
+  const { socket, status: socketStatus } = useSyncStatus(); // Use global socket
   const [invoices, setInvoices] = useState([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
@@ -31,7 +32,7 @@ export const AdminBilling = () => {
   const [auditLogs, setAuditLogs] = useState([]);
   const [showAuditLogs, setShowAuditLogs] = useState(false);
   const [isVerified, setIsVerified] = useState(false);
-  const [socketStatus, setSocketStatus] = useState("disconnected");
+  // socketStatus is now from hook
 
   const fetchAuditLogs = async () => {
     try {
@@ -87,46 +88,31 @@ export const AdminBilling = () => {
     fetchAuditLogs(); // Fetch initial logs
     setProjects(localDataService.getProjects());
 
-    const socket = io({
-      path: "/socket.io",
-      transports: ["websocket", "polling"],
-      withCredentials: true,
-      reconnectionAttempts: 5,
-    });
+    if (socket) {
+      const handleNewRequest = (newInv) => {
+        addToast(`New invoice request from ${newInv.user.name}`, "info");
+        fetchInvoices();
+        fetchAuditLogs(); // Update logs
+      };
 
-    socket.on("connect", () => {
-      setSocketStatus("connected");
-      addToast("Real-time sync active", "success");
-    });
+      const handlePaid = (inv) => {
+        addToast(
+          `Invoice ${inv.referenceNumber} paid by ${inv.user.name}`,
+          "success"
+        );
+        fetchInvoices();
+        fetchAuditLogs();
+      };
 
-    socket.on("disconnect", () => {
-      setSocketStatus("disconnected");
-      addToast("Real-time sync disconnected", "error");
-    });
+      socket.on("new_invoice_request", handleNewRequest);
+      socket.on("invoice_paid", handlePaid);
 
-    socket.on("connect_error", () => {
-      setSocketStatus("error");
-    });
-
-    socket.on("new_invoice_request", (newInv) => {
-      addToast(`New invoice request from ${newInv.user.name}`, "info");
-      fetchInvoices();
-      fetchAuditLogs(); // Update logs
-    });
-
-    socket.on("invoice_paid", (inv) => {
-      addToast(
-        `Invoice ${inv.referenceNumber} paid by ${inv.user.name}`,
-        "success"
-      );
-      fetchInvoices();
-      fetchAuditLogs();
-    });
-
-    return () => {
-      socket.disconnect();
-    };
-  }, []);
+      return () => {
+        socket.off("new_invoice_request", handleNewRequest);
+        socket.off("invoice_paid", handlePaid);
+      };
+    }
+  }, [socket]);
 
   const resetForm = () => {
     setNewInvoice({
@@ -197,6 +183,31 @@ export const AdminBilling = () => {
     } catch (e) {
       console.error(e);
       addToast("An error occurred", "error");
+    }
+  };
+
+  const handleApprove = async (invoice) => {
+    const token = localStorage.getItem("token");
+    try {
+      const res = await fetch(`/api/admin/invoices/${invoice.uuid}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          status: "Sent", // Approve and Send
+        }),
+      });
+
+      if (res.ok) {
+        addToast("Invoice approved and sent!", "success");
+        fetchInvoices();
+      } else {
+        addToast("Failed to approve invoice", "error");
+      }
+    } catch (e) {
+      addToast("Error approving invoice", "error");
     }
   };
 
@@ -463,6 +474,15 @@ export const AdminBilling = () => {
                   </td>
                   <td className="px-6 py-4 text-right">
                     <div className="flex justify-end gap-2">
+                      {invoice.status === "Requested" && (
+                        <button
+                          onClick={() => handleApprove(invoice)}
+                          className="text-green-500 hover:text-green-700 transition-colors"
+                          title="Approve Request"
+                        >
+                          <Icons.CheckCircle className="w-4 h-4" />
+                        </button>
+                      )}
                       <button
                         onClick={() => handleEditClick(invoice)}
                         className="text-gray-400 hover:text-blue-500 transition-colors"

@@ -200,6 +200,7 @@ const StepDetails = ({
   errors,
   user,
   packages,
+  projectOptions,
   selectedPackage,
   onSelectPackage,
 }) => {
@@ -271,8 +272,8 @@ const StepDetails = ({
         <div className="bg-blue-50 dark:bg-blue-900/20 text-blue-800 dark:text-blue-300 p-4 rounded-lg text-sm mb-6 flex items-center gap-3">
           <Icons.Info className="w-5 h-5 flex-shrink-0" />
           <div>
-            <span className="font-bold">Identity Verified.</span> Your name and
-            email have been locked for security.
+            <span className="font-bold">Identity Verified.</span> You can review
+            and edit your details below.
           </div>
         </div>
       )}
@@ -296,19 +297,47 @@ const StepDetails = ({
           <select
             value={selectedPackage?.name || ""}
             onChange={(e) => {
-              const pkg = packages.find((p) => p.name === e.target.value);
+              let pkg = packages.find((p) => p.name === e.target.value);
+              if (!pkg && projectOptions) {
+                for (const cat of projectOptions) {
+                  const found = cat.items.find(
+                    (item) => item.name === e.target.value
+                  );
+                  if (found) {
+                    pkg = {
+                      ...found,
+                      price: found.price.toLocaleString(),
+                      description: cat.category,
+                      features: [],
+                    };
+                    break;
+                  }
+                }
+              }
               if (pkg) onSelectPackage(pkg);
             }}
             className="w-full md:w-auto bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-lg px-4 py-2 text-sm text-gray-900 dark:text-white focus:outline-none focus:border-akatech-gold"
           >
             <option value="" disabled>
-              Change Package
+              Select Project
             </option>
-            {packages.map((pkg) => (
-              <option key={pkg.name} value={pkg.name}>
-                {pkg.name} - GH₵ {pkg.price}
-              </option>
-            ))}
+            <optgroup label="Featured Packages">
+              {packages.map((pkg) => (
+                <option key={pkg.name} value={pkg.name}>
+                  {pkg.name} - GH₵ {pkg.price}
+                </option>
+              ))}
+            </optgroup>
+            {projectOptions &&
+              projectOptions.map((cat) => (
+                <optgroup key={cat.category} label={cat.category}>
+                  {cat.items.map((item) => (
+                    <option key={item.name} value={item.name}>
+                      {item.name} - GH₵ {item.price.toLocaleString()}
+                    </option>
+                  ))}
+                </optgroup>
+              ))}
           </select>
         </div>
       </div>
@@ -323,7 +352,6 @@ const StepDetails = ({
             name="name"
             value={formData.name}
             onChange={handleChange}
-            disabled={!!user?.name}
             className={`w-full bg-white dark:bg-akatech-card border ${
               errors.name
                 ? "border-red-500"
@@ -369,7 +397,7 @@ const StepDetails = ({
             type="email"
             name="email"
             value={formData.email}
-            disabled={!!user?.email}
+            onChange={handleChange}
             className="w-full bg-white dark:bg-akatech-card border border-gray-200 dark:border-white/10 rounded-lg px-4 py-3 text-gray-900 dark:text-white focus:outline-none focus:border-akatech-gold disabled:opacity-50 disabled:cursor-not-allowed"
             placeholder="john@example.com"
           />
@@ -499,6 +527,34 @@ export const SignupWizard = ({ initialPlan, onBack, onComplete }) => {
   const [selectedPackage, setSelectedPackage] = useState(initialPlan || null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const { socket } = useSyncStatus();
+  const [projectOptions, setProjectOptions] = useState(PROJECT_TYPES);
+
+  useEffect(() => {
+    fetch(`${API_URL}/projects/options`)
+      .then((res) => {
+        if (res.ok) return res.json();
+        throw new Error("Failed to fetch project options");
+      })
+      .then((data) => {
+        if (data && Array.isArray(data)) {
+          setProjectOptions(data);
+        }
+      })
+      .catch((err) => console.error(err));
+
+    if (socket) {
+      const handleUpdate = (data) => {
+        if (data && Array.isArray(data)) {
+          setProjectOptions(data);
+        }
+      };
+      socket.on("project_options_updated", handleUpdate);
+      return () => {
+        socket.off("project_options_updated", handleUpdate);
+      };
+    }
+  }, [socket]);
 
   // Form Data
   const [formData, setFormData] = useState({
@@ -714,6 +770,7 @@ export const SignupWizard = ({ initialPlan, onBack, onComplete }) => {
                       : null
                   }
                   packages={PRICING_PACKAGES}
+                  projectOptions={projectOptions}
                   selectedPackage={selectedPackage}
                   onSelectPackage={setSelectedPackage}
                 />

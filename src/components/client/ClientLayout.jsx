@@ -1,6 +1,5 @@
 import React, { useState, useEffect, Suspense, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { io } from "socket.io-client";
 import { Icons } from "@components/ui/Icons";
 import { Logo } from "@components/ui/Logo";
 import { ConnectionStatus } from "../shared/ConnectionStatus";
@@ -9,12 +8,14 @@ import { ClientProjects } from "./ClientProjects";
 import { ClientBilling } from "./ClientBilling";
 import { ClientSupport } from "./ClientSupport";
 import { ClientProfile } from "./ClientProfile";
+import { useSyncStatus } from "@components/ui/SyncStatusProvider";
 
 export const ClientLayout = ({ user, onLogout, onUserUpdate }) => {
   const [activeTab, setActiveTab] = useState("dashboard");
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const { socket } = useSyncStatus();
 
   // Notification State
   const [notifications, setNotifications] = useState([]);
@@ -42,24 +43,12 @@ export const ClientLayout = ({ user, onLogout, onUserUpdate }) => {
     };
 
     fetchNotifications();
+  }, []);
 
-    // Setup socket listener for real-time notifications
-    const socket = io({
-      path: "/socket.io",
-      transports: ["websocket", "polling"],
-      withCredentials: true,
-      reconnectionAttempts: 5,
-    });
+  useEffect(() => {
+    if (!socket) return;
 
-    socket.on("connect", () => {
-      console.log("Connected to notification socket");
-    });
-
-    socket.on("connect_error", (err) => {
-      console.error("Socket connection error:", err);
-    });
-
-    socket.on("notification", (newNotification) => {
+    const handleNotification = (newNotification) => {
       if (
         newNotification.recipientId === "all" ||
         (user && newNotification.recipientId === user.id)
@@ -67,12 +56,14 @@ export const ClientLayout = ({ user, onLogout, onUserUpdate }) => {
         setNotifications((prev) => [newNotification, ...prev]);
         // Optional: Show toast here
       }
-    });
+    };
+
+    socket.on("notification", handleNotification);
 
     return () => {
-      socket.disconnect();
+      socket.off("notification", handleNotification);
     };
-  }, [user]);
+  }, [socket, user]);
 
   // Check for unpaid invoices and redirect
   useEffect(() => {

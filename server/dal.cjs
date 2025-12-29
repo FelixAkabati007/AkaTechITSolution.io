@@ -144,14 +144,20 @@ const createNotification = async (notifData) => {
   return result[0];
 };
 
-const getNotificationsByUserId = async (userId) => {
+const getNotificationsByUserId = async (userId, role) => {
   if (!db) return [];
+  const conditions = [
+    eq(notifications.userId, userId),
+    eq(notifications.target, "all"),
+  ];
+  if (role === "admin") {
+    conditions.push(eq(notifications.target, "admin"));
+  }
+
   return await db
     .select()
     .from(notifications)
-    .where(
-      or(eq(notifications.userId, userId), eq(notifications.target, "all"))
-    )
+    .where(or(...conditions))
     .orderBy(desc(notifications.createdAt));
 };
 
@@ -299,7 +305,7 @@ module.exports = {
       .then((res) => res[0]);
     if (!notif) return;
 
-    if (notif.target === "all") {
+    if (notif.target === "all" || notif.target === "admin") {
       const readBy = notif.readBy || [];
       if (!readBy.includes(userId)) {
         await db

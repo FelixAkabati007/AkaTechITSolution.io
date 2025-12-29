@@ -173,13 +173,17 @@ export default function App() {
     console.error(
       "Critical Error: VITE_GOOGLE_CLIENT_ID is missing in environment variables."
     );
-  } else {
-    // Debug log to ensure Client ID is loaded (masked for security)
-    console.log(
-      "Google Client ID loaded:",
-      googleClientId.substring(0, 10) + "..."
-    );
   }
+
+  useEffect(() => {
+    if (googleClientId) {
+      // Debug log to ensure Client ID is loaded (masked for security)
+      console.log(
+        "Google Client ID loaded:",
+        googleClientId.substring(0, 10) + "..."
+      );
+    }
+  }, [googleClientId]);
 
   return (
     <GoogleOAuthProvider

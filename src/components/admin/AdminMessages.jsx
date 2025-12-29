@@ -125,42 +125,45 @@ export const AdminMessages = () => {
 
   // --- Real-time Sync ---
   useEffect(() => {
-    const socket = io({
-      path: "/socket.io",
-      transports: ["websocket", "polling"],
-      withCredentials: true,
-      reconnectionAttempts: 5,
-    });
+    if (!socket) return;
 
-    socket.on("connect", () => console.log("Socket connected"));
-
-    socket.on("new_message", (msg) => {
+    const handleNewMessage = (msg) => {
       setMessages((prev) => [msg, ...prev]);
-    });
+    };
 
-    socket.on("update_messages", (updatedMsg) => {
+    const handleUpdateMessages = (updatedMsg) => {
       setMessages((prev) =>
         prev.map((msg) => (msg.id === updatedMsg.id ? updatedMsg : msg))
       );
       if (selectedMessage?.id === updatedMsg.id) {
         setSelectedMessage(updatedMsg);
       }
-    });
+    };
 
-    socket.on("delete_messages", (id) => {
+    const handleDeleteMessages = (id) => {
       setMessages((prev) => prev.filter((msg) => msg.id !== id));
       if (selectedMessage?.id === id) {
         setSelectedMessage(null);
       }
-    });
+    };
 
-    socket.on("update_subscriptions", () => {
+    const handleUpdateSubscriptions = () => {
       const token = localStorage.getItem("token");
       if (token) fetchClients(token, false);
-    });
+    };
 
-    return () => socket.disconnect();
-  }, [selectedMessage]);
+    socket.on("new_message", handleNewMessage);
+    socket.on("update_messages", handleUpdateMessages);
+    socket.on("delete_messages", handleDeleteMessages);
+    socket.on("update_subscriptions", handleUpdateSubscriptions);
+
+    return () => {
+      socket.off("new_message", handleNewMessage);
+      socket.off("update_messages", handleUpdateMessages);
+      socket.off("delete_messages", handleDeleteMessages);
+      socket.off("update_subscriptions", handleUpdateSubscriptions);
+    };
+  }, [socket, selectedMessage]);
 
   // --- API Calls ---
   const fetchMessages = async (authToken, retry = true) => {
