@@ -2,8 +2,8 @@ import React, { useState, useEffect, useMemo } from "react";
 import { Icons } from "@components/ui/Icons";
 import { AnimatePresence, motion } from "framer-motion";
 import { format } from "date-fns";
-import { io } from "socket.io-client";
 import { localDataService } from "@lib/localData";
+import { useSyncStatus } from "@components/ui/SyncStatusProvider";
 
 // --- API Helper ---
 const API_URL = "/api";
@@ -14,6 +14,7 @@ const API_URL = "/api";
  * Enhanced with Real-time Sync, Outlook Integration, and Client Selection.
  */
 export const AdminMessages = () => {
+  const { socket } = useSyncStatus();
   const [messages, setMessages] = useState([]);
   const [clients, setClients] = useState([]);
   const [selectedMessage, setSelectedMessage] = useState(null);

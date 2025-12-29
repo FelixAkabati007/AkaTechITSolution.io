@@ -1,6 +1,7 @@
 import React, { useState, Suspense } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Icons } from "@components/ui/Icons";
+import { useOnlineStatus } from "@hooks/useOnlineStatus";
 
 // Lazy load Spline to avoid heavy initial load
 const Spline = React.lazy(() => import("@splinetool/react-spline"));
@@ -10,6 +11,7 @@ export const FloatingAssistant = () => {
   const [hasError, setHasError] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [isLoaded, setIsLoaded] = useState(false);
+  const online = useOnlineStatus();
 
   React.useEffect(() => {
     const checkMobile = () => {
@@ -91,7 +93,7 @@ export const FloatingAssistant = () => {
         <div className="absolute inset-0 bg-gradient-to-tr from-akatech-gold/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
 
         {/* Spline Viewer */}
-        {hasError || isMobile ? (
+        {hasError || isMobile || !online ? (
           <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-akatech-gold/10 to-akatech-gold/30 dark:from-akatech-gold/20 dark:to-akatech-gold/5 text-akatech-gold">
             <Icons.Bot size={32} />
           </div>

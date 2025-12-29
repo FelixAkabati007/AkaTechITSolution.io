@@ -404,6 +404,15 @@ module.exports = {
       .orderBy(desc(subscriptions.createdAt));
   },
 
+  getSubscriptionsByUserId: async (userId) => {
+    if (!db) return [];
+    return await db
+      .select()
+      .from(subscriptions)
+      .where(eq(subscriptions.userId, userId))
+      .orderBy(desc(subscriptions.createdAt));
+  },
+
   getSubscriptionById: async (id) => {
     if (!db) return null;
     const result = await db
@@ -447,6 +456,15 @@ module.exports = {
       .from(invoices)
       .where(eq(invoices.userId, userId))
       .orderBy(desc(invoices.createdAt));
+  },
+
+  getInvoiceByReference: async (reference) => {
+    if (!db) return null;
+    const result = await db
+      .select()
+      .from(invoices)
+      .where(eq(invoices.referenceNumber, reference));
+    return result[0];
   },
 
   getInvoiceById: async (id) => {

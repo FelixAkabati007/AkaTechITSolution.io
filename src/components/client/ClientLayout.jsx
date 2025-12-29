@@ -86,7 +86,8 @@ export const ClientLayout = ({ user, onLogout, onUserUpdate }) => {
 
           if (unpaid) {
             console.log("Redirecting to billing due to unpaid invoice");
-            // setActiveTab("billing"); // Uncomment if desired
+            setActiveTab("billing");
+            // Optional: Add a toast notification here to explain why
           }
         }
       } catch (error) {

@@ -191,7 +191,6 @@ export default function App() {
       onScriptLoadError={() =>
         console.error("Google Sign-In script failed to load")
       }
-      language="en"
     >
       <div className={`min-h-screen ${mode} transition-colors duration-300`}>
         <Analytics />

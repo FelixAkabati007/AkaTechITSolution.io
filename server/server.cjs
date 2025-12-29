@@ -447,6 +447,11 @@ app.post("/api/client-messages", async (req, res) => {
   res.status(201).json({ message: "Message sent successfully." });
 });
 
+// 1a. Get Project Options
+app.get("/api/projects/options", (req, res) => {
+  res.json(PROJECT_TYPES);
+});
+
 // 1b. Project Request Submission
 app.post("/api/projects", async (req, res) => {
   const { name, email, company, plan, notes } = req.body;
@@ -711,7 +716,32 @@ app.post(
         status: newStatus,
         description: encrypt(newDesc),
         updatedAt: new Date(),
+        paidAt: new Date(), // Mark paid time
+        paymentMethod: method,
       });
+
+      // Activate Subscription if Invoice is Paid
+      if (newStatus === "Paid") {
+        const subscriptions = await dal.getSubscriptionsByUserId(req.user.id);
+        // Activate the most recent pending subscription
+        // Ideally, we link invoice to subscription via projectId or a new field, but for now:
+        const pendingSub = subscriptions.find((s) => s.status === "pending");
+        if (pendingSub) {
+          await dal.updateSubscription(pendingSub.id, {
+            status: "active",
+            startDate: new Date(),
+          });
+
+          // Create Notification
+          await dal.createNotification({
+            userId: req.user.id,
+            target: "user",
+            title: "Subscription Activated",
+            message: `Your subscription to ${pendingSub.plan} is now active.`,
+            readBy: [],
+          });
+        }
+      }
 
       // Notify Admin
       io.emit("invoice_paid", {
@@ -1555,6 +1585,51 @@ app.get("/api/audit-logs", authenticateToken, async (req, res) => {
   res.json(logs.slice(0, 100)); // Last 100 logs (already reversed in DAL)
 });
 
+app.get("/api/quality/metrics", async (req, res) => {
+  try {
+    const root = path.join(__dirname, "..");
+    const targets = ["src", "server", "AkaTech_Components"];
+    const validExt = [".js", ".jsx", ".cjs", ".ts", ".tsx"];
+    const stats = {
+      files: 0,
+      lines: 0,
+      todo: 0,
+      console: 0,
+      fetch: 0,
+      insecureHash: 0,
+      tokenLocalStorage: 0,
+    };
+    const walk = (dir) => {
+      const entries = fs.readdirSync(dir, { withFileTypes: true });
+      for (const e of entries) {
+        const p = path.join(dir, e.name);
+        if (e.isDirectory()) walk(p);
+        else {
+          const ext = path.extname(p);
+          if (!validExt.includes(ext)) continue;
+          const content = fs.readFileSync(p, "utf8");
+          stats.files += 1;
+          stats.lines += content.split(/\r?\n/).length;
+          stats.todo += (content.match(/TODO|FIXME/gi) || []).length;
+          stats.console += (content.match(/console\./g) || []).length;
+          stats.fetch += (content.match(/fetch\(/g) || []).length;
+          stats.insecureHash += (content.match(/createHash\(/g) || []).length;
+          stats.tokenLocalStorage += (
+            content.match(/localStorage\.setItem\(\s*["']token["']/g) || []
+          ).length;
+        }
+      }
+    };
+    targets.forEach((t) => {
+      const dir = path.join(root, t);
+      if (fs.existsSync(dir)) walk(dir);
+    });
+    res.json(stats);
+  } catch (e) {
+    res.status(500).json({ error: "Failed to compute metrics" });
+  }
+});
+
 // 9b. Get Client Notifications
 app.get("/api/notifications", authenticateToken, async (req, res) => {
   const userId = req.user.id;
@@ -1704,9 +1779,19 @@ app.post("/api/signup/complete", async (req, res) => {
         role: "client",
         accountType: "Transparent Package", // Default or from finalData
         company: xss(finalData.companyName || ""),
-        // Phone is not in user schema directly, maybe add to details or subscription
       });
       isNewUser = true;
+    } else {
+      // Update existing user details
+      const updates = {};
+      if (finalData.name) updates.name = xss(finalData.name);
+      if (finalData.companyName) updates.company = xss(finalData.companyName);
+
+      if (Object.keys(updates).length > 0) {
+        await dal.updateUser(user.id, updates);
+        // Refresh user object locally
+        user = { ...user, ...updates };
+      }
     }
 
     // 2. Create Subscription/Project Request
@@ -1720,8 +1805,75 @@ app.post("/api/signup/complete", async (req, res) => {
       details: encrypt(JSON.stringify(finalData)), // Encrypt all extra form data
     });
 
-    // 3. Clear progress (not strictly necessary as we can just ignore it, or delete it)
-    // dal.deleteSignupProgress(email); // If we implemented it
+    // 3. Generate Invoice Automatically
+    try {
+      const plan = finalData.selectedPackage || "Unknown";
+      let price = 0;
+
+      const PRICING = {
+        "Startup Identity": 2500,
+        "Enterprise Growth": 6500,
+        "Premium Commerce": 12000,
+      };
+
+      if (PRICING[plan]) {
+        price = PRICING[plan];
+      } else {
+        // Check Dynamic Project Types
+        try {
+          const setting = await dal.getSystemSetting("project_options");
+          const options =
+            setting && setting.value ? setting.value : PROJECT_TYPES;
+
+          for (const cat of options) {
+            const item = cat.items.find((i) => i.name === plan);
+            if (item) {
+              price = item.price;
+              break;
+            }
+          }
+        } catch (e) {
+          // Fallback to constants if DB fails
+          for (const cat of PROJECT_TYPES) {
+            const item = cat.items.find((i) => i.name === plan);
+            if (item) {
+              price = item.price;
+              break;
+            }
+          }
+        }
+      }
+
+      if (price > 0) {
+        const referenceNumber = `INV-${Date.now()}-${Math.floor(
+          Math.random() * 1000
+        )}`;
+        const newInvoice = await dal.createInvoice({
+          referenceNumber,
+          userId: user.id,
+          projectId: null,
+          amount: price.toString(),
+          status: "Sent", // Ready for payment
+          description: encrypt(`Invoice for subscription: ${plan}`),
+          dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days
+        });
+
+        // Notify Client
+        io.emit("invoice_generated", newInvoice);
+
+        // Create Notification
+        await dal.createNotification({
+          userId: user.id,
+          target: "user",
+          title: "Invoice Generated",
+          message: `An invoice for your ${plan} subscription has been generated. Please proceed to payment.`,
+          readBy: [],
+        });
+      }
+    } catch (invError) {
+      console.error("Auto-Invoice Generation Error:", invError);
+      // Continue without failing signup
+    }
 
     // 4. Log Audit
     await dal.createAuditLog({
@@ -1756,6 +1908,79 @@ app.post("/api/signup/complete", async (req, res) => {
   } catch (error) {
     console.error("Signup Completion Error:", error);
     res.status(500).json({ error: "Signup failed" });
+  }
+});
+
+// --- Webhook for Payment Confirmation (External Providers) ---
+app.post("/api/webhooks/payment", async (req, res) => {
+  // In a real scenario, verify signature from payment provider (e.g., Paystack/Stripe signature)
+  const { reference, status, amount, externalId } = req.body;
+
+  console.log("Payment Webhook Received:", req.body);
+
+  if (!reference || !status) {
+    return res.status(400).json({ error: "Invalid payload" });
+  }
+
+  try {
+    // 1. Find Invoice by Reference (or custom logic if reference maps to transaction ID)
+    // Assuming reference here matches the invoice payment reference we stored or the invoice ID
+    // For this implementation, let's assume we store the invoice reference in the "reference" field
+
+    // We need to find which invoice this payment corresponds to.
+    // Usually, we would have stored the external transaction ID with the invoice or payment attempt.
+    // For simplicity, let's search for an invoice that might match this reference or assume 'reference' is our Invoice Reference Number.
+
+    const invoice = await dal.getInvoiceByReference(reference); // Need to implement this in DAL or use getInvoice
+
+    if (!invoice) {
+      // If not found by invoice reference, maybe it's a payment transaction reference
+      console.warn(`Invoice not found for webhook reference: ${reference}`);
+      return res.status(404).json({ message: "Invoice not found" });
+    }
+
+    if (status === "success" || status === "paid") {
+      // Update Invoice Status
+      await dal.updateInvoice(invoice.id, {
+        status: "Paid",
+        paidAt: new Date(),
+        paymentMethod: "external_webhook",
+      });
+
+      // Update Subscription Status if linked
+      const subscriptions = await dal.getSubscriptionsByUserId(invoice.userId);
+      // Logic to find relevant subscription.
+      // Simplified: Activate the most recent pending subscription
+      const pendingSub = subscriptions.find((s) => s.status === "pending");
+      if (pendingSub) {
+        await dal.updateSubscription(pendingSub.id, { status: "active" });
+      }
+
+      // Create Notification
+      await dal.createNotification({
+        userId: invoice.userId,
+        target: "user",
+        title: "Payment Received",
+        message: `Payment for invoice ${invoice.referenceNumber} was successful via webhook.`,
+        readBy: [],
+      });
+
+      io.emit("invoice_updated", { ...invoice, status: "Paid" });
+    } else if (status === "failed") {
+      // Log failure
+      await dal.createNotification({
+        userId: invoice.userId,
+        target: "user",
+        title: "Payment Failed",
+        message: `Payment for invoice ${invoice.referenceNumber} failed.`,
+        readBy: [],
+      });
+    }
+
+    res.status(200).json({ received: true });
+  } catch (error) {
+    console.error("Webhook processing error:", error);
+    res.status(500).json({ error: "Internal Server Error" });
   }
 });
 

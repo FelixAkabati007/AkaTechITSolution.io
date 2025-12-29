@@ -2,8 +2,11 @@ import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { GoogleLogin } from "@react-oauth/google";
 import { Icons } from "@components/ui/Icons";
+import { useSyncStatus } from "@components/ui/SyncStatusProvider";
 import { PRICING_PACKAGES } from "../../lib/data";
+import { PROJECT_TYPES } from "../../lib/constants";
 import { identityService } from "../../lib/IdentityService";
+import { useOnlineStatus } from "../../hooks/useOnlineStatus";
 
 const API_URL = "/api";
 
@@ -62,6 +65,7 @@ const StepSignup = ({ onVerify, loading }) => {
   const [error, setError] = useState("");
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [authMode, setAuthMode] = useState("login"); // 'login' or 'signup'
+  const online = useOnlineStatus();
 
   return (
     <div className="max-w-md mx-auto space-y-6">
@@ -99,6 +103,12 @@ const StepSignup = ({ onVerify, loading }) => {
       </p>
 
       <div className="space-y-4">
+        {!online && (
+          <div className="p-3 bg-yellow-50 text-yellow-700 text-sm rounded-lg flex items-center gap-2">
+            <Icons.AlertTriangle size={16} />
+            You appear to be offline. Google Sign-In is unavailable.
+          </div>
+        )}
         {error && (
           <div className="p-3 bg-red-50 text-red-600 text-sm rounded-lg flex items-center gap-2">
             <Icons.AlertTriangle size={16} />
@@ -139,7 +149,7 @@ const StepSignup = ({ onVerify, loading }) => {
             authMode === "signup" && !termsAccepted
               ? "opacity-50 pointer-events-none"
               : ""
-          }`}
+          } ${!online ? "opacity-50 pointer-events-none" : ""}`}
         >
           {loading && (
             <div className="absolute inset-0 z-10 bg-white/50 dark:bg-black/50 flex items-center justify-center rounded-full">
@@ -147,6 +157,8 @@ const StepSignup = ({ onVerify, loading }) => {
             </div>
           )}
           <GoogleLogin
+            ux_mode="popup"
+            locale="en"
             onSuccess={(credentialResponse) => {
               console.log("Google Login Success:", credentialResponse);
               setError(""); // Clear previous errors
@@ -541,7 +553,13 @@ export const SignupWizard = ({ initialPlan, onBack, onComplete }) => {
           setProjectOptions(data);
         }
       })
-      .catch((err) => console.error(err));
+      .catch((err) => {
+        console.warn(
+          "Using default project options (server unreachable or error):",
+          err.message
+        );
+        setProjectOptions(PROJECT_TYPES);
+      });
 
     if (socket) {
       const handleUpdate = (data) => {

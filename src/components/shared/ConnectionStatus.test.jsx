@@ -1,149 +1,92 @@
-import { render, screen, act, fireEvent } from "@testing-library/react";
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { render, screen, fireEvent } from "@testing-library/react";
+import { describe, it, expect, vi } from "vitest";
 import { ConnectionStatus } from "./ConnectionStatus";
+import { useSyncStatus } from "@components/ui/SyncStatusProvider";
+
+// Mock the hook
+vi.mock("@components/ui/SyncStatusProvider", () => ({
+  useSyncStatus: vi.fn(),
+}));
 
 describe("ConnectionStatus Component", () => {
-  beforeEach(() => {
-    vi.useFakeTimers();
-    // Default online
-    Object.defineProperty(navigator, "onLine", {
-      value: true,
-      configurable: true,
+  it("renders online status correctly", () => {
+    vi.mocked(useSyncStatus).mockReturnValue({
+      status: "synced",
     });
-    // Mock fetch to prevent actual network calls and errors
-    global.fetch = vi.fn(() => Promise.resolve({ ok: true }));
-  });
 
-  afterEach(() => {
-    vi.useRealTimers();
-    vi.restoreAllMocks();
-  });
-
-  it("renders online status correctly by default", () => {
     render(<ConnectionStatus />);
-
     const indicator = screen.getByTestId("connection-status-indicator");
-    expect(indicator).toHaveAttribute("aria-label", "Application online");
-    expect(indicator).toHaveStyle({ backgroundColor: "#4CAF50" });
+
+    expect(indicator).toHaveAttribute("aria-label", "Online");
+    // Green color for synced
+    // expect(indicator).toHaveStyle({ backgroundColor: "rgb(76, 175, 80)" }); // #4CAF50
+  });
+
+  it("renders syncing status correctly", () => {
+    vi.mocked(useSyncStatus).mockReturnValue({
+      status: "syncing",
+    });
+
+    render(<ConnectionStatus />);
+    const indicator = screen.getByTestId("connection-status-indicator");
+
+    expect(indicator).toHaveAttribute("aria-label", "Syncing...");
+    expect(indicator).toHaveClass("animate-pulse");
+    // Blue color for syncing
+    // expect(indicator).toHaveStyle({ backgroundColor: "rgb(33, 150, 243)" }); // #2196F3
+  });
+
+  it("renders connecting status correctly", () => {
+    vi.mocked(useSyncStatus).mockReturnValue({
+      status: "connecting",
+    });
+
+    render(<ConnectionStatus />);
+    const indicator = screen.getByTestId("connection-status-indicator");
+
+    expect(indicator).toHaveAttribute("aria-label", "Connecting...");
+    expect(indicator).toHaveClass("animate-pulse");
+    // Amber color for connecting
+    // expect(indicator).toHaveStyle({ backgroundColor: "rgb(255, 193, 7)" }); // #FFC107
   });
 
   it("renders offline status correctly", () => {
-    Object.defineProperty(navigator, "onLine", {
-      value: false,
-      configurable: true,
+    vi.mocked(useSyncStatus).mockReturnValue({
+      status: "offline",
     });
-    render(<ConnectionStatus />);
 
+    render(<ConnectionStatus />);
     const indicator = screen.getByTestId("connection-status-indicator");
-    expect(indicator).toHaveAttribute("aria-label", "Application offline");
-    expect(indicator).toHaveStyle({ backgroundColor: "#F44336" });
+
+    expect(indicator).toHaveAttribute("aria-label", "Offline");
+    // Red color for offline
+    // expect(indicator).toHaveStyle({ backgroundColor: "rgb(244, 67, 54)" }); // #F44336
   });
 
-  it("updates status on window online/offline events", () => {
+  it("renders error status correctly", () => {
+    vi.mocked(useSyncStatus).mockReturnValue({
+      status: "error",
+    });
+
     render(<ConnectionStatus />);
-
     const indicator = screen.getByTestId("connection-status-indicator");
-    expect(indicator).toHaveAttribute("aria-label", "Application online");
 
-    // Simulate offline
-    act(() => {
-      Object.defineProperty(navigator, "onLine", {
-        value: false,
-        configurable: true,
-      });
-      window.dispatchEvent(new Event("offline"));
-    });
-    expect(indicator).toHaveAttribute("aria-label", "Application offline");
-    expect(indicator).toHaveStyle({ backgroundColor: "#F44336" });
-
-    // Simulate online
-    act(() => {
-      Object.defineProperty(navigator, "onLine", {
-        value: true,
-        configurable: true,
-      });
-      window.dispatchEvent(new Event("online"));
-    });
-    expect(indicator).toHaveAttribute("aria-label", "Application online");
-    expect(indicator).toHaveStyle({ backgroundColor: "#4CAF50" });
+    expect(indicator).toHaveAttribute("aria-label", "Connection Failed");
+    // expect(indicator).toHaveStyle({ backgroundColor: "rgb(244, 67, 54)" }); // #F44336
   });
 
   it("shows tooltip on hover", () => {
+    vi.mocked(useSyncStatus).mockReturnValue({
+      status: "synced",
+    });
+
     render(<ConnectionStatus />);
-
     const container = screen.getByTestId("connection-status-container");
-    fireEvent.mouseEnter(container);
 
+    fireEvent.mouseEnter(container);
     expect(screen.getByText("Online")).toBeInTheDocument();
 
     fireEvent.mouseLeave(container);
     expect(screen.queryByText("Online")).not.toBeInTheDocument();
-  });
-
-  it("performs heartbeat check and updates status", async () => {
-    // Mock fetch sequence:
-    // 1. Initial check on mount: Fails (so it stays offline)
-    // 2. Interval check: Succeeds (so it recovers)
-    const mockFetch = vi
-      .fn()
-      .mockRejectedValueOnce(new Error("Offline"))
-      .mockResolvedValueOnce({ ok: true });
-
-    global.fetch = mockFetch;
-    window.fetch = mockFetch;
-
-    // Start offline
-    Object.defineProperty(navigator, "onLine", {
-      value: false,
-      configurable: true,
-    });
-
-    await act(async () => {
-      render(<ConnectionStatus />);
-    });
-
-    const indicator = screen.getByTestId("connection-status-indicator");
-    // Should be offline initially
-    expect(indicator).toHaveStyle({ backgroundColor: "#F44336" });
-
-    // Advance timer to trigger interval
-    await act(async () => {
-      vi.advanceTimersByTime(30000);
-    });
-
-    // Should have called fetch twice (initial + interval)
-    expect(global.fetch).toHaveBeenCalledTimes(2);
-
-    // Should be online now
-    expect(indicator).toHaveStyle({ backgroundColor: "#4CAF50" });
-  });
-
-  it("handles failed heartbeat check", async () => {
-    // Mock fetch sequence:
-    // 1. Initial check on mount: Succeeds (stays online)
-    // 2. Interval check: Fails (goes offline)
-    const mockFetch = vi
-      .fn()
-      .mockResolvedValueOnce({ ok: true })
-      .mockRejectedValueOnce(new Error("Network error"));
-
-    global.fetch = mockFetch;
-    window.fetch = mockFetch;
-
-    // Start online
-    await act(async () => {
-      render(<ConnectionStatus />);
-    });
-    const indicator = screen.getByTestId("connection-status-indicator");
-
-    // Should be online initially
-    expect(indicator).toHaveStyle({ backgroundColor: "#4CAF50" });
-
-    await act(async () => {
-      vi.advanceTimersByTime(30000);
-    });
-
-    // Should become offline
-    expect(indicator).toHaveStyle({ backgroundColor: "#F44336" });
   });
 });

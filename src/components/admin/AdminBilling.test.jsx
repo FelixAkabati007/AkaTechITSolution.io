@@ -5,6 +5,7 @@ import { AdminBilling } from "./AdminBilling";
 // Mock socket.io-client
 const mockSocket = {
   on: vi.fn(),
+  off: vi.fn(),
   disconnect: vi.fn(),
   emit: vi.fn(),
 };
@@ -18,6 +19,14 @@ const mockAddToast = vi.fn();
 vi.mock("@components/ui/ToastProvider", () => ({
   useToast: () => ({
     addToast: mockAddToast,
+  }),
+}));
+
+// Mock SyncStatusProvider
+vi.mock("@components/ui/SyncStatusProvider", () => ({
+  useSyncStatus: () => ({
+    status: "synced",
+    socket: mockSocket,
   }),
 }));
 
@@ -118,7 +127,7 @@ describe("AdminBilling Component", () => {
     // We mocked connect callback to run immediately in beforeEach
 
     // Check for title attribute
-    const indicator = screen.getByTitle(/Sync Status: connected/i);
+    const indicator = screen.getByTitle(/Sync Status: synced/i);
     expect(indicator).toBeInTheDocument();
     expect(indicator).toHaveClass("bg-green-500");
   });

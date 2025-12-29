@@ -308,7 +308,7 @@ export const AdminBilling = () => {
           Financial Management
           <span
             className={`flex h-3 w-3 rounded-full ${
-              socketStatus === "connected"
+              socketStatus === "synced" || socketStatus === "connected"
                 ? "bg-green-500"
                 : socketStatus === "error"
                 ? "bg-red-500"

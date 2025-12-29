@@ -7,6 +7,7 @@ import { PROJECT_TYPES } from "../../lib/constants";
 
 export const ClientBilling = ({ user }) => {
   const { addToast } = useToast();
+  const { socket } = useSyncStatus();
   const [invoices, setInvoices] = useState([]);
   const [filterStatus, setFilterStatus] = useState("All");
   const [searchQuery, setSearchQuery] = useState("");
@@ -33,6 +34,7 @@ export const ClientBilling = ({ user }) => {
   const [paymentMethod, setPaymentMethod] = useState("card");
   const [paymentReference, setPaymentReference] = useState("");
   const [socketStatus, setSocketStatus] = useState("disconnected");
+  const [projectOptions, setProjectOptions] = useState(PROJECT_TYPES);
   const [bankDetails, setBankDetails] = useState({
     bankName: "Standard Chartered",
     accountName: "AkaTech Solutions",
@@ -377,6 +379,33 @@ export const ClientBilling = ({ user }) => {
     e.preventDefault();
     setIsProcessingPayment(true);
 
+    // Validation
+    if (paymentMethod === "momo") {
+      const phoneRegex = /^0\d{9}$/;
+      if (!phoneRegex.test(paymentReference)) {
+        addToast("Please enter a valid 10-digit mobile money number.", "error");
+        setIsProcessingPayment(false);
+        return;
+      }
+    } else if (paymentMethod === "bank") {
+      if (!paymentReference || paymentReference.trim().length < 5) {
+        addToast("Please enter a valid transaction reference.", "error");
+        setIsProcessingPayment(false);
+        return;
+      }
+    } else if (paymentMethod === "card") {
+      if (
+        !paymentDetails.cardNumber ||
+        paymentDetails.cardNumber.length < 16 ||
+        !paymentDetails.expiry ||
+        !paymentDetails.cvv
+      ) {
+        addToast("Please enter valid card details.", "error");
+        setIsProcessingPayment(false);
+        return;
+      }
+    }
+
     try {
       const token = localStorage.getItem("token");
       const payload = {
@@ -511,8 +540,10 @@ export const ClientBilling = ({ user }) => {
                 <input
                   type="text"
                   value={requestData.subject}
-                  disabled
-                  className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-white/10 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white cursor-not-allowed"
+                  onChange={(e) =>
+                    setRequestData({ ...requestData, subject: e.target.value })
+                  }
+                  className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-white/10 bg-white dark:bg-akatech-card text-gray-900 dark:text-white focus:ring-2 focus:ring-akatech-gold outline-none"
                 />
               </div>
               <div>
