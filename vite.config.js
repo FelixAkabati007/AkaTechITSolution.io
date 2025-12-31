@@ -47,10 +47,11 @@ export default defineConfig({
           spline: ["@splinetool/react-spline", "@splinetool/runtime"],
           pdf: ["jspdf"],
           realtime: ["socket.io-client"],
+          utils: ["date-fns", "idb"],
         },
       },
     },
-    chunkSizeWarningLimit: 1600,
+    chunkSizeWarningLimit: 3000,
   },
   test: {
     globals: true,
