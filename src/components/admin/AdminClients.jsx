@@ -16,11 +16,13 @@ export const AdminClients = () => {
   });
   const { addToast } = useToast();
 
-  // Search, Filter, Pagination
+  // Search, Filter, Pagination, Sorting
   const [searchQuery, setSearchQuery] = useState("");
   const [roleFilter, setRoleFilter] = useState("all");
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(10);
+  const [sortConfig, setSortConfig] = useState({ key: null, direction: "asc" });
+  const [loading, setLoading] = useState(false);
 
   // Invoice Generation
   const [isInvoiceModalOpen, setIsInvoiceModalOpen] = useState(false);
@@ -72,8 +74,12 @@ export const AdminClients = () => {
 
   const fetchUsers = useCallback(async () => {
     try {
+      setLoading(true);
       const token = localStorage.getItem("token");
-      if (!token) return;
+      if (!token) {
+        setLoading(false);
+        return;
+      }
 
       const res = await fetch("/api/users", {
         headers: { Authorization: `Bearer ${token}` },
@@ -85,11 +91,18 @@ export const AdminClients = () => {
       } else {
         // Fallback to mock if API fails or not admin
         console.warn("Failed to fetch users, falling back to mock data");
+        addToast(
+          "Failed to fetch users from server. Showing local data.",
+          "warning"
+        );
         setUsers(localDataService.getUsers());
       }
     } catch (error) {
       console.error("Error fetching users:", error);
+      addToast("Network error. Showing local data.", "error");
       setUsers(localDataService.getUsers());
+    } finally {
+      setLoading(false);
     }
   }, []);
 
@@ -330,15 +343,107 @@ export const AdminClients = () => {
   };
 
   // --- Pagination & Filtering Logic ---
+  const handleSort = (key) => {
+    let direction = "asc";
+    if (sortConfig.key === key && sortConfig.direction === "asc") {
+      direction = "desc";
+    }
+    setSortConfig({ key, direction });
+  };
+
+  const handleExport = () => {
+    if (!users || users.length === 0) {
+      addToast("No data to export", "warning");
+      return;
+    }
+
+    // Define CSV headers and map data
+    const headers = [
+      "ID",
+      "Name",
+      "Email",
+      "Role",
+      "Joined Date",
+      "Status",
+      "Account Type",
+    ];
+    const csvContent = [
+      headers.join(","),
+      ...users.map((user) => {
+        const joinedDate =
+          user.joinedAt || user.createdAt
+            ? new Date(user.joinedAt || user.createdAt).toLocaleDateString()
+            : "N/A";
+        const status = user.googleId ? "Verified (Google)" : "Active (Email)";
+        const accountType = user.googleId ? "Google Auth" : "Standard";
+
+        return [
+          user.id,
+          `"${user.name || ""}"`, // Quote name to handle commas
+          user.email,
+          user.role,
+          joinedDate,
+          status,
+          accountType,
+        ].join(",");
+      }),
+    ].join("\n");
+
+    // Create and trigger download
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const link = document.createElement("a");
+    const url = URL.createObjectURL(blob);
+    link.setAttribute("href", url);
+    link.setAttribute(
+      "download",
+      `clients_export_${new Date().toISOString().split("T")[0]}.csv`
+    );
+    link.style.visibility = "hidden";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   const filteredUsers = useMemo(() => {
-    return users.filter((user) => {
+    let filtered = users.filter((user) => {
       const matchesSearch =
         user.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         user.email.toLowerCase().includes(searchQuery.toLowerCase());
       const matchesRole = roleFilter === "all" || user.role === roleFilter;
       return matchesSearch && matchesRole;
     });
-  }, [users, searchQuery, roleFilter]);
+
+    if (sortConfig.key) {
+      filtered.sort((a, b) => {
+        let aValue = a[sortConfig.key];
+        let bValue = b[sortConfig.key];
+
+        // Handle specific sorting cases
+        if (sortConfig.key === "spent") {
+          aValue = getClientMetrics(a.id).totalSpent;
+          bValue = getClientMetrics(b.id).totalSpent;
+        } else if (sortConfig.key === "joinedAt") {
+          aValue = new Date(a.joinedAt || a.createdAt || 0);
+          bValue = new Date(b.joinedAt || b.createdAt || 0);
+        } else if (sortConfig.key === "status") {
+          aValue = a.googleId ? "Verified (Google)" : "Active";
+          bValue = b.googleId ? "Verified (Google)" : "Active";
+        } else if (typeof aValue === "string") {
+          aValue = aValue.toLowerCase();
+          bValue = bValue.toLowerCase();
+        }
+
+        if (aValue < bValue) {
+          return sortConfig.direction === "asc" ? -1 : 1;
+        }
+        if (aValue > bValue) {
+          return sortConfig.direction === "asc" ? 1 : -1;
+        }
+        return 0;
+      });
+    }
+    return filtered;
+  }, [users, searchQuery, roleFilter, sortConfig, invoices]);
 
   const totalPages = Math.ceil(filteredUsers.length / itemsPerPage);
   const currentUsers = filteredUsers.slice(
@@ -392,6 +497,24 @@ export const AdminClients = () => {
           >
             <Icons.Plus className="w-4 h-4" /> Add User
           </button>
+
+          <button
+            onClick={handleExport}
+            className="px-4 py-2 bg-green-600 text-white text-sm font-bold uppercase tracking-widest hover:bg-green-700 transition-colors flex items-center gap-2 whitespace-nowrap rounded"
+            title="Export to CSV"
+          >
+            <Icons.Download className="w-4 h-4" /> Export
+          </button>
+
+          <button
+            onClick={fetchUsers}
+            className="px-4 py-2 bg-gray-100 dark:bg-white/10 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-white/20 transition-colors rounded-lg"
+            title="Refresh List"
+          >
+            <Icons.RefreshCw
+              className={`w-4 h-4 ${loading ? "animate-spin" : ""}`}
+            />
+          </button>
         </div>
       </div>
 
@@ -402,20 +525,89 @@ export const AdminClients = () => {
           <table className="w-full text-left text-sm">
             <thead className="bg-gray-50 dark:bg-white/5 border-b border-gray-200 dark:border-white/10">
               <tr>
-                <th className="px-6 py-4 font-bold text-gray-900 dark:text-white uppercase text-xs tracking-wider">
-                  Name
+                <th
+                  className="px-6 py-4 font-bold text-gray-900 dark:text-white uppercase text-xs tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-white/10 transition-colors select-none"
+                  onClick={() => handleSort("name")}
+                >
+                  <div className="flex items-center gap-2">
+                    Name
+                    {sortConfig.key === "name" &&
+                      (sortConfig.direction === "asc" ? (
+                        <Icons.ArrowUp className="w-3 h-3" />
+                      ) : (
+                        <Icons.ArrowDown className="w-3 h-3" />
+                      ))}
+                  </div>
                 </th>
-                <th className="px-6 py-4 font-bold text-gray-900 dark:text-white uppercase text-xs tracking-wider">
-                  Email
+                <th
+                  className="px-6 py-4 font-bold text-gray-900 dark:text-white uppercase text-xs tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-white/10 transition-colors select-none"
+                  onClick={() => handleSort("email")}
+                >
+                  <div className="flex items-center gap-2">
+                    Email
+                    {sortConfig.key === "email" &&
+                      (sortConfig.direction === "asc" ? (
+                        <Icons.ArrowUp className="w-3 h-3" />
+                      ) : (
+                        <Icons.ArrowDown className="w-3 h-3" />
+                      ))}
+                  </div>
                 </th>
-                <th className="px-6 py-4 font-bold text-gray-900 dark:text-white uppercase text-xs tracking-wider">
-                  Role
+                <th
+                  className="px-6 py-4 font-bold text-gray-900 dark:text-white uppercase text-xs tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-white/10 transition-colors select-none"
+                  onClick={() => handleSort("role")}
+                >
+                  <div className="flex items-center gap-2">
+                    Role
+                    {sortConfig.key === "role" &&
+                      (sortConfig.direction === "asc" ? (
+                        <Icons.ArrowUp className="w-3 h-3" />
+                      ) : (
+                        <Icons.ArrowDown className="w-3 h-3" />
+                      ))}
+                  </div>
                 </th>
-                <th className="px-6 py-4 font-bold text-gray-900 dark:text-white uppercase text-xs tracking-wider">
-                  Spent / Due
+                <th
+                  className="px-6 py-4 font-bold text-gray-900 dark:text-white uppercase text-xs tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-white/10 transition-colors select-none"
+                  onClick={() => handleSort("spent")}
+                >
+                  <div className="flex items-center gap-2">
+                    Spent / Due
+                    {sortConfig.key === "spent" &&
+                      (sortConfig.direction === "asc" ? (
+                        <Icons.ArrowUp className="w-3 h-3" />
+                      ) : (
+                        <Icons.ArrowDown className="w-3 h-3" />
+                      ))}
+                  </div>
                 </th>
-                <th className="px-6 py-4 font-bold text-gray-900 dark:text-white uppercase text-xs tracking-wider">
-                  Joined
+                <th
+                  className="px-6 py-4 font-bold text-gray-900 dark:text-white uppercase text-xs tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-white/10 transition-colors select-none"
+                  onClick={() => handleSort("joinedAt")}
+                >
+                  <div className="flex items-center gap-2">
+                    Joined
+                    {sortConfig.key === "joinedAt" &&
+                      (sortConfig.direction === "asc" ? (
+                        <Icons.ArrowUp className="w-3 h-3" />
+                      ) : (
+                        <Icons.ArrowDown className="w-3 h-3" />
+                      ))}
+                  </div>
+                </th>
+                <th
+                  className="px-6 py-4 font-bold text-gray-900 dark:text-white uppercase text-xs tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-white/10 transition-colors select-none"
+                  onClick={() => handleSort("status")}
+                >
+                  <div className="flex items-center gap-2">
+                    Status
+                    {sortConfig.key === "status" &&
+                      (sortConfig.direction === "asc" ? (
+                        <Icons.ArrowUp className="w-3 h-3" />
+                      ) : (
+                        <Icons.ArrowDown className="w-3 h-3" />
+                      ))}
+                  </div>
                 </th>
                 <th className="px-6 py-4 font-bold text-gray-900 dark:text-white uppercase text-xs tracking-wider text-right">
                   Actions
@@ -423,95 +615,131 @@ export const AdminClients = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200 dark:divide-white/5">
-              {currentUsers.map((user) => {
-                const { totalSpent, outstanding } = getClientMetrics(user.id);
-                return (
-                  <tr
-                    key={user.id}
-                    className="hover:bg-gray-50 dark:hover:bg-white/5 transition-colors"
+              {loading ? (
+                <tr>
+                  <td
+                    colSpan="7"
+                    className="px-6 py-8 text-center text-gray-500"
                   >
-                    <td className="px-6 py-4 font-medium text-gray-900 dark:text-white">
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-full bg-akatech-gold flex items-center justify-center text-white font-bold text-xs overflow-hidden">
-                          {user.avatarUrl ? (
-                            <img
-                              src={user.avatarUrl}
-                              alt={user.name}
-                              className="w-full h-full object-cover"
-                            />
-                          ) : (
-                            user.name.charAt(0)
-                          )}
+                    <div className="flex justify-center items-center gap-2">
+                      <Icons.Loader className="w-5 h-5 animate-spin" />
+                      Loading clients...
+                    </div>
+                  </td>
+                </tr>
+              ) : currentUsers.length === 0 ? (
+                <tr>
+                  <td
+                    colSpan="7"
+                    className="px-6 py-8 text-center text-gray-500"
+                  >
+                    No clients found matching your criteria.
+                  </td>
+                </tr>
+              ) : (
+                currentUsers.map((user) => {
+                  const { totalSpent, outstanding } = getClientMetrics(user.id);
+                  return (
+                    <tr
+                      key={user.id}
+                      className="hover:bg-gray-50 dark:hover:bg-white/5 transition-colors"
+                    >
+                      <td className="px-6 py-4 font-medium text-gray-900 dark:text-white">
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 rounded-full bg-akatech-gold flex items-center justify-center text-white font-bold text-xs overflow-hidden">
+                            {user.avatarUrl ? (
+                              <img
+                                src={user.avatarUrl}
+                                alt={user.name}
+                                className="w-full h-full object-cover"
+                              />
+                            ) : (
+                              user.name.charAt(0)
+                            )}
+                          </div>
+                          {user.name}
                         </div>
-                        {user.name}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 text-gray-500 dark:text-gray-400">
-                      {user.email}
-                    </td>
-                    <td className="px-6 py-4">
-                      <span className="px-2 py-1 bg-gray-100 dark:bg-white/10 rounded-full text-xs font-mono text-gray-600 dark:text-gray-400">
-                        {user.role}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 text-xs">
-                      <div className="text-green-600 dark:text-green-400 font-medium">
-                        GH₵ {totalSpent.toFixed(2)}
-                      </div>
-                      {outstanding > 0 && (
-                        <div className="text-red-500 dark:text-red-400 mt-1">
-                          Due: GH₵ {outstanding.toFixed(2)}
+                      </td>
+                      <td className="px-6 py-4 text-gray-500 dark:text-gray-400">
+                        {user.email}
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className="px-2 py-1 bg-gray-100 dark:bg-white/10 rounded-full text-xs font-mono text-gray-600 dark:text-gray-400">
+                          {user.role}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 text-xs">
+                        <div className="text-green-600 dark:text-green-400 font-medium">
+                          GH₵ {totalSpent.toFixed(2)}
                         </div>
-                      )}
-                    </td>
-                    <td className="px-6 py-4 text-xs text-gray-500">
-                      {user.joinedAt
-                        ? new Date(user.joinedAt).toLocaleDateString()
-                        : "-"}
-                    </td>
-                    <td className="px-6 py-4 text-right flex justify-end gap-2">
-                      {user.role === "client" && (
-                        <button
-                          onClick={() => {
-                            setSelectedClient(user);
-                            setInvoiceData({
-                              amount: "",
-                              description: "",
-                              dueDate: "",
-                              items: [
-                                { description: "", quantity: 1, price: 0 },
-                              ],
-                            });
-                            setIsVerified(false); // Reset verification
-                            setIsInvoiceModalOpen(true);
-                          }}
-                          className="p-2 text-gray-400 hover:text-green-500 transition-colors"
-                          aria-label="Generate Invoice"
-                          title="Generate Invoice"
+                        {outstanding > 0 && (
+                          <div className="text-red-500 dark:text-red-400 mt-1">
+                            Due: GH₵ {outstanding.toFixed(2)}
+                          </div>
+                        )}
+                      </td>
+                      <td className="px-6 py-4 text-xs text-gray-500">
+                        {user.joinedAt || user.createdAt
+                          ? new Date(
+                              user.joinedAt || user.createdAt
+                            ).toLocaleDateString()
+                          : "-"}
+                      </td>
+                      <td className="px-6 py-4">
+                        <span
+                          className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
+                            user.googleId
+                              ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400"
+                              : "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400"
+                          }`}
                         >
-                          <Icons.FileText className="w-4 h-4" />
+                          {user.googleId ? "Verified (Google)" : "Active"}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 text-right flex justify-end gap-2">
+                        {user.role === "client" && (
+                          <button
+                            onClick={() => {
+                              setSelectedClient(user);
+                              setInvoiceData({
+                                amount: "",
+                                description: "",
+                                dueDate: "",
+                                items: [
+                                  { description: "", quantity: 1, price: 0 },
+                                ],
+                              });
+                              setIsVerified(false); // Reset verification
+                              setIsInvoiceModalOpen(true);
+                            }}
+                            className="p-2 text-gray-400 hover:text-green-500 transition-colors"
+                            aria-label="Generate Invoice"
+                            title="Generate Invoice"
+                          >
+                            <Icons.FileText className="w-4 h-4" />
+                          </button>
+                        )}
+                        <button
+                          onClick={() => handleEditUser(user)}
+                          className="p-2 text-gray-400 hover:text-akatech-gold transition-colors"
+                          aria-label="Edit user"
+                          title="Edit User"
+                        >
+                          <Icons.PenTool className="w-4 h-4" />
                         </button>
-                      )}
-                      <button
-                        onClick={() => handleEditUser(user)}
-                        className="p-2 text-gray-400 hover:text-akatech-gold transition-colors"
-                        aria-label="Edit user"
-                        title="Edit User"
-                      >
-                        <Icons.PenTool className="w-4 h-4" />
-                      </button>
-                      <button
-                        onClick={() => handleDeleteUser(user.id)}
-                        className="p-2 text-gray-400 hover:text-red-500 transition-colors"
-                        aria-label="Delete user"
-                        title="Delete User"
-                      >
-                        <Icons.Trash className="w-4 h-4" />
-                      </button>
-                    </td>
-                  </tr>
-                );
-              })}
+                        <button
+                          onClick={() => handleDeleteUser(user.id)}
+                          className="p-2 text-gray-400 hover:text-red-500 transition-colors"
+                          aria-label="Delete user"
+                          title="Delete User"
+                        >
+                          <Icons.Trash className="w-4 h-4" />
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
             </tbody>
           </table>
         </div>
