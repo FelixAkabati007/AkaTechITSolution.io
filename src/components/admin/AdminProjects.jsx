@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from "react";
-import { Icons } from "../../../AkaTech_Components/ui/Icons";
-import { localDataService } from "@lib/localData";
+import { Icons } from "@components/ui/Icons";
+// import { localDataService } from "@lib/localData"; // Removed mock service
 import { ClientSelectionModal } from "./ClientSelectionModal";
 
 /**
@@ -11,7 +11,7 @@ import { ClientSelectionModal } from "./ClientSelectionModal";
  * - List view of all projects with status and phase indicators
  * - Create/Edit functionality via modal
  * - Delete capability
- * - Integration with localDataService for data persistence
+ * - Integration with secure API for data persistence
  */
 export const AdminProjects = () => {
   // State for project list and UI controls
@@ -37,26 +37,52 @@ export const AdminProjects = () => {
   // Available clients for assignment
   const [clients, setClients] = useState([]);
   const [isLoadingClients, setIsLoadingClients] = useState(false);
+  const [isLoadingProjects, setIsLoadingProjects] = useState(false);
 
   useEffect(() => {
     loadData();
   }, []);
 
   /**
-   * Loads projects and clients from the service
+   * Loads projects and clients from the API
    */
-  const loadData = () => {
+  const loadData = async () => {
     setIsLoadingClients(true);
-    // Simulate network delay for realistic loading state
-    setTimeout(() => {
-      setProjects(localDataService.getProjects());
-      setClients(
-        localDataService
-          .getUsers()
-          .filter((u) => u.role === "Client" && u.status === "Verified")
-      );
+    setIsLoadingProjects(true);
+    try {
+      // Fetch Clients
+      const clientsRes = await fetch("/api/admin/clients");
+      if (!clientsRes.ok) throw new Error("Failed to fetch clients");
+      const clientsData = await clientsRes.json();
+
+      // Map clients data to include status based on verification
+      const mappedClients = clientsData.map((c) => ({
+        ...c,
+        status: c.googleId ? "Verified" : "Active",
+      }));
+      setClients(mappedClients);
+
+      // Fetch Projects
+      const projectsRes = await fetch("/api/admin/projects");
+      if (!projectsRes.ok) throw new Error("Failed to fetch projects");
+      const projectsData = await projectsRes.json();
+
+      // Map projects data to frontend model
+      const mappedProjects = projectsData.map((p) => ({
+        id: p.id,
+        clientId: p.userId,
+        title: p.name,
+        description: p.notes,
+        status: p.status,
+        currentPhase: p.plan, // Using plan as phase proxy
+      }));
+      setProjects(mappedProjects);
+    } catch (error) {
+      console.error("Error loading data:", error);
+    } finally {
       setIsLoadingClients(false);
-    }, 500);
+      setIsLoadingProjects(false);
+    }
   };
 
   /**
@@ -69,8 +95,8 @@ export const AdminProjects = () => {
       setFormData({
         title: project.title,
         clientId: project.clientId,
-        description: project.description,
-        status: project.status,
+        description: project.description || "",
+        status: project.status || "Pending",
       });
     } else {
       setCurrentProject(null);
@@ -84,23 +110,62 @@ export const AdminProjects = () => {
     setIsModalOpen(true);
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    const projectData = {
-      ...formData,
-      clientId: parseInt(formData.clientId),
-      id: currentProject ? currentProject.id : undefined,
-    };
+    try {
+      const method = currentProject ? "PUT" : "POST";
+      const url = currentProject
+        ? `/api/admin/projects/${currentProject.id}`
+        : "/api/admin/projects";
 
-    localDataService.saveProject(projectData);
-    loadData();
-    setIsModalOpen(false);
+      const res = await fetch(url, {
+        method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(formData),
+      });
+
+      if (!res.ok) throw new Error("Failed to save project");
+
+      loadData();
+      setIsModalOpen(false);
+    } catch (error) {
+      console.error("Save error:", error);
+      alert("Failed to save project");
+    }
   };
 
-  const handleDelete = (id) => {
+  const handleDelete = async (id) => {
     if (window.confirm("Are you sure you want to delete this project?")) {
-      localDataService.deleteProject(id);
+      try {
+        const res = await fetch(`/api/admin/projects/${id}`, {
+          method: "DELETE",
+        });
+        if (!res.ok) throw new Error("Failed to delete project");
+        loadData();
+      } catch (error) {
+        console.error("Delete error:", error);
+        alert("Failed to delete project");
+      }
+    }
+  };
+
+  const handleStatusChange = async (project, newStatus) => {
+    try {
+      const res = await fetch(`/api/admin/projects/${project.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: project.title,
+          clientId: project.clientId,
+          description: project.description,
+          status: newStatus,
+        }),
+      });
+      if (!res.ok) throw new Error("Failed to update status");
       loadData();
+    } catch (error) {
+      console.error("Status update error:", error);
+      alert("Failed to update status");
     }
   };
 
@@ -112,26 +177,6 @@ export const AdminProjects = () => {
   const handleClientSelect = (client) => {
     setFormData({ ...formData, clientId: client.id });
     setIsClientModalOpen(false);
-  };
-
-  const handleClientDelete = (clientId) => {
-    if (
-      window.confirm(
-        "Are you sure you want to delete this client? This action cannot be undone and will remove all associated projects."
-      )
-    ) {
-      setIsLoadingClients(true);
-      // Simulate network request for deletion
-      setTimeout(() => {
-        const success = localDataService.deleteUser(clientId);
-        if (success) {
-          loadData();
-        } else {
-          setIsLoadingClients(false);
-          alert("Failed to delete client.");
-        }
-      }, 500);
-    }
   };
 
   // --- Pagination & Filtering Logic ---
@@ -187,6 +232,7 @@ export const AdminProjects = () => {
           />
         </div>
         <select
+          data-testid="status-filter"
           className="px-4 py-2 rounded-lg border border-gray-300 dark:border-white/10 bg-transparent text-gray-900 dark:text-white focus:ring-2 focus:ring-akatech-gold outline-none"
           value={statusFilter}
           onChange={(e) => {
@@ -224,63 +270,74 @@ export const AdminProjects = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200 dark:divide-white/5">
-              {currentProjects.map((project) => (
-                <tr
-                  key={project.id}
-                  className="hover:bg-gray-50 dark:hover:bg-white/5 transition-colors"
-                >
-                  <td className="px-6 py-4">
-                    <div className="font-medium text-gray-900 dark:text-white">
-                      {project.title}
-                    </div>
-                    <div className="text-xs text-gray-500 line-clamp-1">
-                      {project.description}
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 text-gray-500 dark:text-gray-400">
-                    {getClientName(project.clientId)}
-                  </td>
-                  <td className="px-6 py-4">
-                    <select
-                      value={project.status}
-                      onChange={(e) =>
-                        handleStatusChange(project, e.target.value)
-                      }
-                      className={`cursor-pointer inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border outline-none focus:ring-2 focus:ring-offset-1 focus:ring-akatech-gold ${
-                        project.status === "Completed"
-                          ? "bg-green-100 text-green-800 border-green-200"
-                          : project.status === "In Progress"
-                          ? "bg-akatech-gold/10 text-akatech-gold border-akatech-gold/20"
-                          : "bg-gray-100 text-gray-800 border-gray-200"
-                      }`}
-                    >
-                      <option value="Pending">Pending</option>
-                      <option value="In Progress">In Progress</option>
-                      <option value="Completed">Completed</option>
-                    </select>
-                  </td>
-                  <td className="px-6 py-4 text-gray-500 dark:text-gray-400">
-                    {project.currentPhase || "N/A"}
-                  </td>
-                  <td className="px-6 py-4 text-right flex justify-end gap-2">
-                    <button
-                      onClick={() => handleOpenModal(project)}
-                      className="text-gray-400 hover:text-akatech-gold transition-colors"
-                      title="Edit"
-                    >
-                      <Icons.PenTool className="w-4 h-4" />
-                    </button>
-                    <button
-                      onClick={() => handleDelete(project.id)}
-                      className="text-gray-400 hover:text-red-500 transition-colors"
-                      title="Delete"
-                    >
-                      <Icons.Trash className="w-4 h-4" />
-                    </button>
+              {isLoadingProjects ? (
+                <tr>
+                  <td
+                    colSpan="5"
+                    className="px-6 py-8 text-center text-gray-500"
+                  >
+                    Loading projects...
                   </td>
                 </tr>
-              ))}
-              {projects.length === 0 && (
+              ) : (
+                currentProjects.map((project) => (
+                  <tr
+                    key={project.id}
+                    className="hover:bg-gray-50 dark:hover:bg-white/5 transition-colors"
+                  >
+                    <td className="px-6 py-4">
+                      <div className="font-medium text-gray-900 dark:text-white">
+                        {project.title}
+                      </div>
+                      <div className="text-xs text-gray-500 line-clamp-1">
+                        {project.description}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 text-gray-500 dark:text-gray-400">
+                      {getClientName(project.clientId)}
+                    </td>
+                    <td className="px-6 py-4">
+                      <select
+                        value={project.status}
+                        onChange={(e) =>
+                          handleStatusChange(project, e.target.value)
+                        }
+                        className={`cursor-pointer inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border outline-none focus:ring-2 focus:ring-offset-1 focus:ring-akatech-gold ${
+                          project.status === "Completed"
+                            ? "bg-green-100 text-green-800 border-green-200"
+                            : project.status === "In Progress"
+                            ? "bg-akatech-gold/10 text-akatech-gold border-akatech-gold/20"
+                            : "bg-gray-100 text-gray-800 border-gray-200"
+                        }`}
+                      >
+                        <option value="Pending">Pending</option>
+                        <option value="In Progress">In Progress</option>
+                        <option value="Completed">Completed</option>
+                      </select>
+                    </td>
+                    <td className="px-6 py-4 text-gray-500 dark:text-gray-400">
+                      {project.currentPhase || "N/A"}
+                    </td>
+                    <td className="px-6 py-4 text-right flex justify-end gap-2">
+                      <button
+                        onClick={() => handleOpenModal(project)}
+                        className="text-gray-400 hover:text-akatech-gold transition-colors"
+                        title="Edit"
+                      >
+                        <Icons.PenTool className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={() => handleDelete(project.id)}
+                        className="text-gray-400 hover:text-red-500 transition-colors"
+                        title="Delete"
+                      >
+                        <Icons.Trash className="w-4 h-4" />
+                      </button>
+                    </td>
+                  </tr>
+                ))
+              )}
+              {!isLoadingProjects && projects.length === 0 && (
                 <tr>
                   <td
                     colSpan="5"
@@ -338,10 +395,14 @@ export const AdminProjects = () => {
             </div>
             <form onSubmit={handleSubmit} className="p-6 space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                <label
+                  htmlFor="project-title"
+                  className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+                >
                   Project Title
                 </label>
                 <input
+                  id="project-title"
                   type="text"
                   required
                   value={formData.title}
@@ -368,7 +429,7 @@ export const AdminProjects = () => {
                     }
                   >
                     {formData.clientId
-                      ? getClientName(parseInt(formData.clientId))
+                      ? getClientName(formData.clientId)
                       : "Select Client"}
                   </span>
                   <Icons.ChevronDown className="w-4 h-4 text-gray-400" />
@@ -395,30 +456,27 @@ export const AdminProjects = () => {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                <label
+                  htmlFor="project-description"
+                  className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+                >
                   Description
                 </label>
                 <textarea
-                  rows="3"
+                  id="project-description"
                   value={formData.description}
                   onChange={(e) =>
                     setFormData({ ...formData, description: e.target.value })
                   }
+                  rows={3}
                   className="w-full px-3 py-2 bg-gray-50 dark:bg-black/20 border border-gray-200 dark:border-white/10 rounded-lg focus:ring-2 focus:ring-akatech-gold focus:border-transparent outline-none transition-all resize-none"
-                ></textarea>
+                />
               </div>
 
               <div className="flex justify-end pt-4">
                 <button
-                  type="button"
-                  onClick={() => setIsModalOpen(false)}
-                  className="px-4 py-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 mr-2"
-                >
-                  Cancel
-                </button>
-                <button
                   type="submit"
-                  className="px-4 py-2 bg-akatech-gold text-white font-bold rounded-lg hover:bg-akatech-goldDark transition-colors"
+                  className="px-6 py-2 bg-akatech-gold text-white font-bold uppercase tracking-widest rounded-lg hover:bg-akatech-goldDark transition-colors"
                 >
                   {currentProject ? "Update Project" : "Create Project"}
                 </button>
@@ -433,7 +491,7 @@ export const AdminProjects = () => {
         isOpen={isClientModalOpen}
         onClose={() => setIsClientModalOpen(false)}
         onSelect={handleClientSelect}
-        onDelete={handleClientDelete}
+        // onDelete={handleClientDelete} // Removed mock deletion
         clients={clients}
         isLoading={isLoadingClients}
       />

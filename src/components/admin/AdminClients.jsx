@@ -74,7 +74,7 @@ export const AdminClients = () => {
     try {
       setLoading(true);
 
-      const res = await fetch("/api/users", {
+      const res = await fetch("/api/admin/clients", {
         credentials: "include",
       });
 
@@ -519,6 +519,20 @@ export const AdminClients = () => {
               <tr>
                 <th
                   className="px-6 py-4 font-bold text-gray-900 dark:text-white uppercase text-xs tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-white/10 transition-colors select-none"
+                  onClick={() => handleSort("id")}
+                >
+                  <div className="flex items-center gap-2">
+                    ID
+                    {sortConfig.key === "id" &&
+                      (sortConfig.direction === "asc" ? (
+                        <Icons.ArrowUp className="w-3 h-3" />
+                      ) : (
+                        <Icons.ArrowDown className="w-3 h-3" />
+                      ))}
+                  </div>
+                </th>
+                <th
+                  className="px-6 py-4 font-bold text-gray-900 dark:text-white uppercase text-xs tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-white/10 transition-colors select-none"
                   onClick={() => handleSort("name")}
                 >
                   <div className="flex items-center gap-2">
@@ -538,34 +552,6 @@ export const AdminClients = () => {
                   <div className="flex items-center gap-2">
                     Email
                     {sortConfig.key === "email" &&
-                      (sortConfig.direction === "asc" ? (
-                        <Icons.ArrowUp className="w-3 h-3" />
-                      ) : (
-                        <Icons.ArrowDown className="w-3 h-3" />
-                      ))}
-                  </div>
-                </th>
-                <th
-                  className="px-6 py-4 font-bold text-gray-900 dark:text-white uppercase text-xs tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-white/10 transition-colors select-none"
-                  onClick={() => handleSort("role")}
-                >
-                  <div className="flex items-center gap-2">
-                    Role
-                    {sortConfig.key === "role" &&
-                      (sortConfig.direction === "asc" ? (
-                        <Icons.ArrowUp className="w-3 h-3" />
-                      ) : (
-                        <Icons.ArrowDown className="w-3 h-3" />
-                      ))}
-                  </div>
-                </th>
-                <th
-                  className="px-6 py-4 font-bold text-gray-900 dark:text-white uppercase text-xs tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-white/10 transition-colors select-none"
-                  onClick={() => handleSort("spent")}
-                >
-                  <div className="flex items-center gap-2">
-                    Spent / Due
-                    {sortConfig.key === "spent" &&
                       (sortConfig.direction === "asc" ? (
                         <Icons.ArrowUp className="w-3 h-3" />
                       ) : (
@@ -602,7 +588,7 @@ export const AdminClients = () => {
                   </div>
                 </th>
                 <th className="px-6 py-4 font-bold text-gray-900 dark:text-white uppercase text-xs tracking-wider text-right">
-                  Actions
+                  Action
                 </th>
               </tr>
             </thead>
@@ -610,7 +596,7 @@ export const AdminClients = () => {
               {loading ? (
                 <tr>
                   <td
-                    colSpan="7"
+                    colSpan="6"
                     className="px-6 py-8 text-center text-gray-500"
                   >
                     <div className="flex justify-center items-center gap-2">
@@ -622,7 +608,7 @@ export const AdminClients = () => {
               ) : currentUsers.length === 0 ? (
                 <tr>
                   <td
-                    colSpan="7"
+                    colSpan="6"
                     className="px-6 py-8 text-center text-gray-500"
                   >
                     No clients found matching your criteria.
@@ -630,12 +616,17 @@ export const AdminClients = () => {
                 </tr>
               ) : (
                 currentUsers.map((user) => {
-                  const { totalSpent, outstanding } = getClientMetrics(user.id);
                   return (
                     <tr
                       key={user.id}
                       className="hover:bg-gray-50 dark:hover:bg-white/5 transition-colors"
                     >
+                      <td
+                        className="px-6 py-4 font-mono text-xs text-gray-500"
+                        title={user.id}
+                      >
+                        #{user.id.substring(0, 8)}
+                      </td>
                       <td className="px-6 py-4 font-medium text-gray-900 dark:text-white">
                         <div className="flex items-center gap-3">
                           <div className="w-8 h-8 rounded-full bg-akatech-gold flex items-center justify-center text-white font-bold text-xs overflow-hidden">
@@ -644,6 +635,7 @@ export const AdminClients = () => {
                                 src={user.avatarUrl}
                                 alt={user.name}
                                 className="w-full h-full object-cover"
+                                referrerPolicy="no-referrer"
                               />
                             ) : (
                               user.name.charAt(0)
@@ -654,21 +646,6 @@ export const AdminClients = () => {
                       </td>
                       <td className="px-6 py-4 text-gray-500 dark:text-gray-400">
                         {user.email}
-                      </td>
-                      <td className="px-6 py-4">
-                        <span className="px-2 py-1 bg-gray-100 dark:bg-white/10 rounded-full text-xs font-mono text-gray-600 dark:text-gray-400">
-                          {user.role}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 text-xs">
-                        <div className="text-green-600 dark:text-green-400 font-medium">
-                          GH₵ {totalSpent.toFixed(2)}
-                        </div>
-                        {outstanding > 0 && (
-                          <div className="text-red-500 dark:text-red-400 mt-1">
-                            Due: GH₵ {outstanding.toFixed(2)}
-                          </div>
-                        )}
                       </td>
                       <td className="px-6 py-4 text-xs text-gray-500">
                         {user.joinedAt || user.createdAt

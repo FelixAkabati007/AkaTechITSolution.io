@@ -103,6 +103,11 @@ const getAllUsers = async () => {
   return await db.select().from(users);
 };
 
+const getClients = async () => {
+  if (!db) return [];
+  return await db.select().from(users).where(eq(users.role, "client"));
+};
+
 // Projects
 const createProject = async (projectData) => {
   if (!db) return null;
@@ -247,6 +252,7 @@ module.exports = {
     return result[0];
   },
   getAllUsers,
+  getClients,
   createProject,
   getAllProjects,
   getProjectsByEmail,

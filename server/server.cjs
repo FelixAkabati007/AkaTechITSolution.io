@@ -109,6 +109,7 @@ app.use(
     },
   })
 );
+app.use(cookieParser());
 
 // Request Logger
 app.use((req, res, next) => {
@@ -478,8 +479,8 @@ app.post("/api/signup/verify-google", async (req, res) => {
     // Set secure cookie
     res.cookie("auth_token", sessionToken, {
       httpOnly: true,
-      secure: true,
-      sameSite: "none",
+      secure: process.env.NODE_ENV === "production",
+      sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
       path: "/",
       maxAge: 24 * 60 * 60 * 1000, // 24 hours
     });
@@ -588,8 +589,8 @@ app.post("/api/auth/register", async (req, res) => {
   // Set secure cookie
   res.cookie("auth_token", token, {
     httpOnly: true,
-    secure: true,
-    sameSite: "none",
+    secure: process.env.NODE_ENV === "production",
+    sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
     path: "/",
     maxAge: 24 * 60 * 60 * 1000,
   });
@@ -609,6 +610,100 @@ app.get("/api/users", authenticateToken, authorizeAdmin, async (req, res) => {
   const safeUsers = users.map(({ passwordHash, ...user }) => user);
   res.json(safeUsers);
 });
+
+app.get(
+  "/api/admin/clients",
+  authenticateToken,
+  authorizeAdmin,
+  async (req, res) => {
+    try {
+      const clients = await dal.getClients();
+      const safeClients = clients.map(({ passwordHash, ...client }) => client);
+      res.json(safeClients);
+    } catch (error) {
+      console.error("Get Clients Error:", error);
+      res.status(500).json({ error: "Failed to fetch clients" });
+    }
+  }
+);
+
+// Admin Projects Routes
+app.get(
+  "/api/admin/projects",
+  authenticateToken,
+  authorizeAdmin,
+  async (req, res) => {
+    try {
+      const projects = await dal.getAllProjects();
+      res.json(projects);
+    } catch (error) {
+      console.error("Get Projects Error:", error);
+      res.status(500).json({ error: "Failed to fetch projects" });
+    }
+  }
+);
+
+app.post(
+  "/api/admin/projects",
+  authenticateToken,
+  authorizeAdmin,
+  async (req, res) => {
+    const { title, clientId, description, status } = req.body;
+    if (!title || !clientId) {
+      return res.status(400).json({ error: "Title and Client are required" });
+    }
+    try {
+      const newProject = await dal.createProject({
+        name: title,
+        userId: clientId,
+        notes: description,
+        status: status || "pending",
+      });
+      res.status(201).json(newProject);
+    } catch (error) {
+      console.error("Create Project Error:", error);
+      res.status(500).json({ error: "Failed to create project" });
+    }
+  }
+);
+
+app.put(
+  "/api/admin/projects/:id",
+  authenticateToken,
+  authorizeAdmin,
+  async (req, res) => {
+    const { id } = req.params;
+    const { title, clientId, description, status } = req.body;
+    try {
+      const updatedProject = await dal.updateProject(id, {
+        name: title,
+        userId: clientId,
+        notes: description,
+        status: status,
+      });
+      res.json(updatedProject);
+    } catch (error) {
+      console.error("Update Project Error:", error);
+      res.status(500).json({ error: "Failed to update project" });
+    }
+  }
+);
+
+app.delete(
+  "/api/admin/projects/:id",
+  authenticateToken,
+  authorizeAdmin,
+  async (req, res) => {
+    const { id } = req.params;
+    try {
+      await dal.deleteProject(id);
+      res.json({ message: "Project deleted successfully" });
+    } catch (error) {
+      console.error("Delete Project Error:", error);
+      res.status(500).json({ error: "Failed to delete project" });
+    }
+  }
+);
 
 // 1. Client Message Submission
 app.post("/api/client-messages", async (req, res) => {
@@ -1471,8 +1566,8 @@ app.post("/api/login", async (req, res) => {
     // Set secure cookie
     res.cookie("auth_token", token, {
       httpOnly: true,
-      secure: true,
-      sameSite: "none",
+      secure: process.env.NODE_ENV === "production",
+      sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
       path: "/",
       maxAge: 24 * 60 * 60 * 1000,
     });
@@ -1492,8 +1587,8 @@ app.post("/api/login", async (req, res) => {
 app.post("/api/logout", (req, res) => {
   res.clearCookie("auth_token", {
     httpOnly: true,
-    secure: true,
-    sameSite: "none",
+    secure: process.env.NODE_ENV === "production",
+    sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
     path: "/",
   });
   res.json({ message: "Logged out" });
