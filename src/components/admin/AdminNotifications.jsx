@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { Icons } from "@components/ui/Icons";
 import { useToast } from "@components/ui/ToastProvider";
 
-export const AdminNotifications = () => {
+const AdminNotifications = () => {
   const { addToast } = useToast();
   const [activeTab, setActiveTab] = useState("inbox"); // 'inbox' | 'compose'
   const [loading, setLoading] = useState(false);
@@ -98,17 +98,17 @@ export const AdminNotifications = () => {
         method: "PATCH",
         headers: { Authorization: `Bearer ${token}` },
       });
-      // Update local state
       setInbox((prev) => prev.map((n) => ({ ...n, read: true })));
+      addToast("All notifications marked as read", "success");
     } catch (e) {
       console.error("Error marking all as read", e);
+      addToast("Failed to mark all as read", "error");
     }
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
-
     try {
       const token = localStorage.getItem("token");
       const res = await fetch("/api/notifications/send", {
@@ -120,135 +120,150 @@ export const AdminNotifications = () => {
         body: JSON.stringify(formData),
       });
 
-      if (res.ok) {
-        addToast("Notification sent successfully", "success");
-        setFormData({
-          recipientId: "all",
-          title: "",
-          message: "",
-          type: "info",
-        });
-        fetchHistory();
-      } else {
-        const data = await res.json();
-        addToast(data.error || "Failed to send notification", "error");
-      }
+      if (!res.ok) throw new Error("Failed to send notification");
+
+      addToast("Notification sent successfully", "success");
+      setFormData({
+        recipientId: "all",
+        title: "",
+        message: "",
+        type: "info",
+      });
+      fetchHistory(); // Refresh history
+      setActiveTab("inbox"); // Go back to inbox/history
     } catch (error) {
-      addToast("Error sending notification", "error");
+      console.error("Error sending notification:", error);
+      addToast(error.message, "error");
     } finally {
       setLoading(false);
     }
   };
 
+  const combinedNotifications = useMemo(() => {
+    const all = [...inbox, ...history];
+    // Deduplicate by ID
+    const uniqueMap = new Map();
+    all.forEach((item) => {
+      if (item.id) uniqueMap.set(item.id, item);
+      else uniqueMap.set(Math.random(), item); // Fallback for missing IDs
+    });
+    const unique = Array.from(uniqueMap.values());
+    // Sort by date (newest first)
+    return unique.sort(
+      (a, b) =>
+        new Date(b.createdAt || b.timestamp) -
+        new Date(a.createdAt || a.timestamp)
+    );
+  }, [inbox, history]);
+
   return (
-    <div className="p-8 space-y-8">
+    <div className="space-y-6">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h2 className="text-3xl font-serif text-gray-900 dark:text-white mb-2">
-            Notifications
+          <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
+            Notifications Center
           </h2>
-          <p className="text-gray-500 dark:text-gray-400">
-            Manage system alerts and client communications.
+          <p className="text-gray-600 dark:text-gray-400">
+            Manage and send notifications to users
           </p>
         </div>
-        {/* Tabs */}
-        <div className="flex space-x-2 bg-gray-100 dark:bg-white/5 p-1 rounded-lg self-start">
+        <div className="flex gap-2">
           <button
             onClick={() => setActiveTab("inbox")}
-            className={`px-4 py-2 rounded-md text-sm font-medium transition-colors flex items-center gap-2 ${
+            className={`px-4 py-2 rounded-lg font-medium transition-colors ${
               activeTab === "inbox"
-                ? "bg-white dark:bg-akatech-primary text-gray-900 dark:text-white shadow-sm"
-                : "text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
+                ? "bg-akatech-gold text-white"
+                : "bg-white dark:bg-akatech-card text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-white/5 border border-gray-200 dark:border-white/10"
             }`}
           >
-            <Icons.Inbox className="w-4 h-4" />
-            Inbox
-            {inbox.filter((n) => !n.read).length > 0 && (
-              <span className="bg-red-500 text-white text-xs px-1.5 rounded-full">
-                {inbox.filter((n) => !n.read).length}
-              </span>
-            )}
+            Inbox & History
           </button>
           <button
             onClick={() => setActiveTab("compose")}
-            className={`px-4 py-2 rounded-md text-sm font-medium transition-colors flex items-center gap-2 ${
+            className={`px-4 py-2 rounded-lg font-medium transition-colors ${
               activeTab === "compose"
-                ? "bg-white dark:bg-akatech-primary text-gray-900 dark:text-white shadow-sm"
-                : "text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
+                ? "bg-akatech-gold text-white"
+                : "bg-white dark:bg-akatech-card text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-white/5 border border-gray-200 dark:border-white/10"
             }`}
           >
-            <Icons.Send className="w-4 h-4" />
-            Compose & History
+            Compose New
           </button>
         </div>
       </div>
 
       {activeTab === "inbox" ? (
-        <div className="bg-white dark:bg-akatech-card rounded-lg border border-gray-200 dark:border-white/10 overflow-hidden shadow-sm min-h-[400px]">
-          <div className="p-4 border-b border-gray-200 dark:border-white/10 flex justify-between items-center bg-gray-50 dark:bg-white/5">
-            <h3 className="font-bold text-gray-900 dark:text-white flex items-center gap-2">
-              <Icons.Bell className="w-5 h-5 text-akatech-gold" />
-              System Alerts
+        <div className="space-y-6">
+          {/* Action Bar */}
+          <div className="flex justify-between items-center bg-white dark:bg-akatech-card p-4 rounded-lg border border-gray-200 dark:border-white/10">
+            <h3 className="font-semibold text-gray-900 dark:text-white">
+              Recent Activity
             </h3>
-            {inbox.some((n) => !n.read) && (
-              <button
-                onClick={markAllRead}
-                className="text-sm text-akatech-primary hover:text-akatech-gold transition-colors font-medium"
-              >
-                Mark all as read
-              </button>
-            )}
+            <button
+              onClick={markAllRead}
+              className="text-sm text-akatech-gold hover:text-akatech-goldDark font-medium"
+            >
+              Mark all as read
+            </button>
           </div>
 
-          {inboxLoading ? (
-            <div className="flex justify-center items-center h-64">
-              <Icons.Loader className="w-8 h-8 animate-spin text-akatech-gold" />
-            </div>
-          ) : (
-            <div className="divide-y divide-gray-200 dark:divide-white/10">
-              {inbox.length === 0 ? (
-                <div className="flex flex-col items-center justify-center h-64 text-gray-400">
-                  <Icons.Inbox className="w-12 h-12 mb-4 opacity-20" />
-                  <p>No notifications</p>
-                </div>
-              ) : (
-                inbox.map((n) => (
+          {/* Inbox List */}
+          <div className="bg-white dark:bg-akatech-card rounded-lg border border-gray-200 dark:border-white/10 overflow-hidden">
+            {inboxLoading ? (
+              <div className="p-8 flex justify-center">
+                <Icons.Loader className="w-8 h-8 animate-spin text-akatech-gold" />
+              </div>
+            ) : combinedNotifications.length === 0 ? (
+              <div className="p-8 text-center text-gray-500 dark:text-gray-400">
+                No notifications found
+              </div>
+            ) : (
+              <div className="divide-y divide-gray-200 dark:divide-white/10">
+                {combinedNotifications.slice(0, 50).map((item) => (
                   <div
-                    key={n.id}
-                    className={`p-4 transition-colors hover:bg-gray-50 dark:hover:bg-white/5 flex gap-4 cursor-pointer ${
-                      !n.read ? "bg-blue-50/50 dark:bg-blue-900/10" : ""
+                    key={item.id}
+                    className={`p-4 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors ${
+                      !item.read ? "bg-blue-50/50 dark:bg-blue-900/10" : ""
                     }`}
-                    onClick={() => !n.read && markAsRead(n.id)}
                   >
-                    <div
-                      className={`mt-1 flex-shrink-0 w-2 h-2 rounded-full ${
-                        !n.read ? "bg-akatech-primary" : "bg-transparent"
-                      }`}
-                    />
-                    <div className="flex-1">
-                      <div className="flex justify-between items-start mb-1">
-                        <h4
-                          className={`font-medium ${
-                            !n.read
-                              ? "text-gray-900 dark:text-white"
-                              : "text-gray-600 dark:text-gray-400"
-                          }`}
-                        >
-                          {n.title}
-                        </h4>
-                        <span className="text-xs text-gray-400 whitespace-nowrap ml-2">
-                          {new Date(n.createdAt).toLocaleString()}
-                        </span>
-                      </div>
-                      <p className="text-sm text-gray-600 dark:text-gray-400 leading-relaxed">
-                        {n.message}
-                      </p>
+                    <div className="flex justify-between items-start mb-1">
+                      <h4 className="font-bold text-gray-900 dark:text-white">
+                        {item.title}
+                      </h4>
+                      <span
+                        className={`text-xs px-2 py-1 rounded-full ${
+                          item.type === "error"
+                            ? "bg-red-100 text-red-600"
+                            : item.type === "warning"
+                            ? "bg-orange-100 text-orange-600"
+                            : item.type === "success"
+                            ? "bg-green-100 text-green-600"
+                            : "bg-blue-100 text-blue-600"
+                        }`}
+                      >
+                        {item.type}
+                      </span>
+                    </div>
+                    <p className="text-sm text-gray-600 dark:text-gray-300 mb-3">
+                      {item.message}
+                    </p>
+                    <div className="flex justify-between items-center text-xs text-gray-400">
+                      <span className="flex items-center gap-1">
+                        <Icons.Users className="w-3 h-3" />
+                        {item.recipientId === "all"
+                          ? "Broadcast"
+                          : "Single User"}
+                      </span>
+                      <span>
+                        {new Date(
+                          item.createdAt || item.timestamp
+                        ).toLocaleString()}
+                      </span>
                     </div>
                   </div>
-                ))
-              )}
-            </div>
-          )}
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
@@ -349,74 +364,18 @@ export const AdminNotifications = () => {
                     <Icons.Loader className="w-5 h-5 animate-spin" />
                   ) : (
                     <>
-                      <Icons.Send className="w-4 h-4" /> Send Notification
+                      <Icons.Send className="w-4 h-4" />
+                      Send Notification
                     </>
                   )}
                 </button>
               </div>
             </form>
           </div>
-
-          {/* History */}
-          <div className="bg-white dark:bg-akatech-card rounded-lg border border-gray-200 dark:border-white/10 p-6 shadow-sm flex flex-col h-[600px]">
-            <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-6 flex items-center gap-2">
-              <Icons.Clock className="w-5 h-5 text-gray-400" />
-              Recent History
-            </h3>
-
-            <div className="flex-1 overflow-y-auto space-y-4 pr-2">
-              {history.length === 0 ? (
-                <div className="h-full flex flex-col items-center justify-center text-gray-400">
-                  <Icons.Bell className="w-12 h-12 mb-4 opacity-20" />
-                  <p>No notifications sent yet.</p>
-                </div>
-              ) : (
-                history.map((item) => (
-                  <div
-                    key={item.id}
-                    className="p-4 rounded-lg bg-gray-50 dark:bg-white/5 border border-gray-100 dark:border-white/5"
-                  >
-                    <div className="flex justify-between items-start mb-2">
-                      <h4 className="font-bold text-gray-900 dark:text-white">
-                        {item.title}
-                      </h4>
-                      <span
-                        className={`text-xs px-2 py-1 rounded-full ${
-                          item.type === "error"
-                            ? "bg-red-100 text-red-600"
-                            : item.type === "warning"
-                            ? "bg-orange-100 text-orange-600"
-                            : item.type === "success"
-                            ? "bg-green-100 text-green-600"
-                            : "bg-blue-100 text-blue-600"
-                        }`}
-                      >
-                        {item.type}
-                      </span>
-                    </div>
-                    <p className="text-sm text-gray-600 dark:text-gray-300 mb-3">
-                      {item.message}
-                    </p>
-                    <div className="flex justify-between items-center text-xs text-gray-400">
-                      <span className="flex items-center gap-1">
-                        <Icons.Users className="w-3 h-3" />
-                        {item.recipientId === "all"
-                          ? "Broadcast"
-                          : "Single User"}
-                      </span>
-                      <span>
-                        {new Date(
-                          item.createdAt || item.timestamp
-                        ).toLocaleString()}
-                      </span>
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
-          </div>
         </div>
       )}
     </div>
   );
 };
+
+export default AdminNotifications;

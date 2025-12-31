@@ -53,7 +53,11 @@ export const ClientLayout = ({ user, onLogout, onUserUpdate }) => {
         newNotification.recipientId === "all" ||
         (user && newNotification.recipientId === user.id)
       ) {
-        setNotifications((prev) => [newNotification, ...prev]);
+        setNotifications((prev) => {
+          // Prevent duplicates
+          if (prev.some((n) => n.id === newNotification.id)) return prev;
+          return [newNotification, ...prev];
+        });
         // Optional: Show toast here
       }
     };

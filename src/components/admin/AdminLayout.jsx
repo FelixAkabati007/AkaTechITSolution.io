@@ -17,7 +17,7 @@ import { AdminProfile } from "./AdminProfile";
 import { AdminProjects } from "./AdminProjects";
 import { AdminMessages } from "./AdminMessages";
 import { AdminSubscriptions } from "./AdminSubscriptions";
-import { AdminNotifications } from "./AdminNotifications";
+import AdminNotifications from "./AdminNotifications";
 
 export const AdminLayout = ({ user, onLogout }) => {
   const [activeTab, setActiveTab] = useState("dashboard");

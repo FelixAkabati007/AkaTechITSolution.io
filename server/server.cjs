@@ -23,11 +23,12 @@ const { PROJECT_TYPES } = require("./constants.cjs");
 const app = express();
 const server = http.createServer(app);
 
-const CLIENT_URL = process.env.CLIENT_URL || "http://localhost:5175";
+const CLIENT_URL = process.env.CLIENT_URL || "http://localhost:5173";
 const ALLOWED_ORIGINS = [
   CLIENT_URL,
   "https://aka-tech-two.vercel.app",
   "http://localhost:5173", // Vite default
+  "http://localhost:5175", // Current dev port
   "http://localhost:3000", // Common alternative
 ];
 
