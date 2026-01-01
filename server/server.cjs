@@ -937,22 +937,11 @@ app.post("/api/signup/complete", async (req, res) => {
       let price = 0;
       let planName = pkgName;
 
-      // Find package price from PROJECT_TYPES
-      for (const category of PROJECT_TYPES) {
-        const item = category.items.find((i) => i.name === pkgName);
-        if (item) {
-          price = item.price;
-          break;
-        }
-      }
-
-      // Fallback lookup based on common names if not found in PROJECT_TYPES
-      if (price === 0) {
-        if (pkgName.includes("Starter")) price = 2000;
-        else if (pkgName.includes("Professional")) price = 5000;
-        else if (pkgName.includes("Enterprise")) price = 15000;
-        else if (pkgName.includes("Basic")) price = 1000;
-      }
+      // Simple lookup based on common names in the app
+      if (pkgName.includes("Starter")) price = 2000;
+      else if (pkgName.includes("Professional")) price = 5000;
+      else if (pkgName.includes("Enterprise")) price = 15000;
+      else if (pkgName.includes("Basic")) price = 1000;
 
       // If price is 0, maybe try to match from PROJECT_TYPES if available in server context
       // Or just default to a "Custom" amount

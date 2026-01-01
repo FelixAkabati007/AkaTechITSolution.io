@@ -183,7 +183,12 @@ export default function App() {
   }, [googleClientId]);
 
   return (
-    <GoogleOAuthProvider clientId={import.meta.env.VITE_GOOGLE_CLIENT_ID}>
+    <GoogleOAuthProvider
+      clientId={googleClientId}
+      onScriptLoadError={() =>
+        console.error("Google Sign-In script failed to load")
+      }
+    >
       <div className={`min-h-screen ${mode} transition-colors duration-300`}>
         <Analytics />
         <ToastProvider>
