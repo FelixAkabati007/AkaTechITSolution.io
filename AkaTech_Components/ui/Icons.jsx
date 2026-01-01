@@ -58,6 +58,8 @@ import {
   Trash2,
   History,
   DollarSign,
+  AlertCircle,
+  Calendar,
 } from "lucide-react";
 
 export const Icons = {
@@ -121,6 +123,8 @@ export const Icons = {
   Trash2,
   History,
   DollarSign,
+  AlertCircle,
+  Calendar,
   Google: (props) => (
     <svg
       {...props}

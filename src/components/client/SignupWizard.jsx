@@ -161,7 +161,6 @@ const StepSignup = ({ onVerify, loading }) => {
           )}
           <GoogleLogin
             ux_mode="popup"
-            locale="en"
             onSuccess={(credentialResponse) => {
               console.log("Google Login Success:", credentialResponse);
               setError(""); // Clear previous errors

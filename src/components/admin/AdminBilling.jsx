@@ -545,8 +545,14 @@ export const AdminBilling = () => {
       )}
 
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-          <div className="bg-white dark:bg-akatech-card w-full max-w-lg rounded-lg shadow-xl p-6 border border-gray-200 dark:border-white/10">
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
+          onClick={() => setIsModalOpen(false)}
+        >
+          <div
+            className="bg-white dark:bg-akatech-card w-full max-w-lg rounded-lg shadow-xl p-6 border border-gray-200 dark:border-white/10"
+            onClick={(e) => e.stopPropagation()}
+          >
             <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-6">
               {isEditMode ? "Edit Invoice" : "Create New Invoice"}
             </h3>
