@@ -1,49 +1,5 @@
 import { Icons } from "@components/ui/Icons";
 
-export const PRICING_PACKAGES = [
-  {
-    name: "Startup Identity",
-    price: "2,500",
-    description: "Perfect for emerging businesses needing a digital footprint.",
-    features: [
-      "Responsive Landing Page",
-      "Basic SEO Setup",
-      "Contact Form Integration",
-      "1 Month Support",
-      "Domain Setup",
-    ],
-    recommended: false,
-  },
-  {
-    name: "Enterprise Growth",
-    price: "6,500",
-    description: "Comprehensive solution for scaling companies.",
-    features: [
-      "Multi-page CMS Website",
-      "Admin Dashboard",
-      "Google Analytics",
-      "Blog/News Section",
-      "Social Media Integration",
-      "3 Months Support",
-    ],
-    recommended: true,
-  },
-  {
-    name: "Premium Commerce",
-    price: "12,000+",
-    description: "Full-scale custom architecture for high-volume trade.",
-    features: [
-      "Custom E-commerce / POS",
-      "User Authentication",
-      "Payment Gateway (Paystack)",
-      "Inventory Management",
-      "Custom API Development",
-      "6 Months Priority Support",
-    ],
-    recommended: false,
-  },
-];
-
 export const SERVICES = [
   {
     icon: Icons.Code,

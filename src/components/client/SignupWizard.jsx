@@ -3,66 +3,11 @@ import { motion, AnimatePresence } from "framer-motion";
 import { GoogleLogin } from "@react-oauth/google";
 import { Icons } from "@components/ui/Icons";
 import { useSyncStatus } from "@components/ui/SyncStatusProvider";
-import { PRICING_PACKAGES } from "../../lib/data";
 import { PROJECT_TYPES } from "../../lib/constants";
 import { identityService } from "../../lib/IdentityService";
 import { useOnlineStatus } from "../../hooks/useOnlineStatus";
 
 const API_URL = "/api";
-
-const StepPackageSelection = ({ selectedPackage, onSelect }) => {
-  return (
-    <div className="space-y-6">
-      <h2 className="text-2xl font-serif font-bold text-gray-900 dark:text-white mb-4">
-        Select Your Package
-      </h2>
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {PRICING_PACKAGES.map((pkg) => (
-          <div
-            key={pkg.name}
-            onClick={() => onSelect(pkg)}
-            className={`cursor-pointer rounded-xl p-6 border-2 transition-all active:scale-95 ${
-              selectedPackage?.name === pkg.name
-                ? "border-akatech-gold bg-akatech-gold/5 dark:bg-akatech-gold/10 transform scale-105"
-                : "border-gray-200 dark:border-white/10 hover:border-akatech-gold/50"
-            }`}
-          >
-            <div className="flex justify-between items-start mb-4">
-              <h3 className="font-bold text-lg text-gray-900 dark:text-white">
-                {pkg.name}
-              </h3>
-              {selectedPackage?.name === pkg.name && (
-                <div className="h-6 w-6 bg-akatech-gold rounded-full flex items-center justify-center text-white">
-                  <Icons.Check size={14} />
-                </div>
-              )}
-            </div>
-            <div className="text-2xl font-bold text-akatech-gold mb-2">
-              GH₵ {pkg.price}
-            </div>
-            <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
-              {pkg.description}
-            </p>
-            <ul className="space-y-3">
-              {pkg.features.slice(0, 3).map((feature, idx) => (
-                <li
-                  key={idx}
-                  className="text-sm text-gray-600 dark:text-gray-300 flex items-center gap-3"
-                >
-                  <Icons.Check
-                    size={16}
-                    className="text-green-500 flex-shrink-0"
-                  />
-                  {feature}
-                </li>
-              ))}
-            </ul>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-};
 
 const StepSignup = ({ onVerify, loading }) => {
   const [error, setError] = useState("");
@@ -214,7 +159,6 @@ const StepDetails = ({
   setFormData,
   errors,
   user,
-  packages,
   projectOptions,
   selectedPackage,
   onSelectPackage,
@@ -312,8 +256,8 @@ const StepDetails = ({
           <select
             value={selectedPackage?.name || ""}
             onChange={(e) => {
-              let pkg = packages.find((p) => p.name === e.target.value);
-              if (!pkg && projectOptions) {
+              let pkg = null;
+              if (projectOptions) {
                 for (const cat of projectOptions) {
                   const found = cat.items.find(
                     (item) => item.name === e.target.value
@@ -336,13 +280,6 @@ const StepDetails = ({
             <option value="" disabled>
               Select Project
             </option>
-            <optgroup label="Featured Packages">
-              {packages.map((pkg) => (
-                <option key={pkg.name} value={pkg.name}>
-                  {pkg.name} - GH₵ {pkg.price}
-                </option>
-              ))}
-            </optgroup>
             {projectOptions &&
               projectOptions.map((cat) => (
                 <optgroup key={cat.category} label={cat.category}>
@@ -538,7 +475,7 @@ const StepConfirmation = ({
 };
 
 export const SignupWizard = ({ initialPlan, onBack, onComplete }) => {
-  const [step, setStep] = useState(initialPlan ? 2 : 1);
+  const [step, setStep] = useState(1);
   const [selectedPackage, setSelectedPackage] = useState(initialPlan || null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -595,11 +532,6 @@ export const SignupWizard = ({ initialPlan, onBack, onComplete }) => {
     // Logic to restore could go here
   }, []);
 
-  const handlePackageSelect = (pkg) => {
-    setSelectedPackage(pkg);
-    setStep(2);
-  };
-
   const handleEmailVerification = async (action, payload) => {
     setLoading(true);
     try {
@@ -641,10 +573,22 @@ export const SignupWizard = ({ initialPlan, onBack, onComplete }) => {
             const progressData = await progressRes.json();
             if (progressData.data) {
               setFormData((prev) => ({ ...prev, ...progressData.data }));
-              if (progressData.data.selectedPackage) {
-                const pkg = PRICING_PACKAGES.find(
-                  (p) => p.name === progressData.data.selectedPackage
-                );
+              if (progressData.data.selectedPackage && projectOptions) {
+                let pkg = null;
+                for (const cat of projectOptions) {
+                  const found = cat.items.find(
+                    (item) => item.name === progressData.data.selectedPackage
+                  );
+                  if (found) {
+                    pkg = {
+                      ...found,
+                      price: found.price.toLocaleString(),
+                      description: cat.category,
+                      features: [],
+                    };
+                    break;
+                  }
+                }
                 if (pkg) setSelectedPackage(pkg);
               }
             }
@@ -652,7 +596,7 @@ export const SignupWizard = ({ initialPlan, onBack, onComplete }) => {
         } catch (e) {
           console.error("Failed to load progress", e);
         }
-        setTimeout(() => setStep(3), 1000);
+        setTimeout(() => setStep(2), 1000);
       }
     } catch (err) {
       console.error("Verification error:", err);
@@ -687,7 +631,7 @@ export const SignupWizard = ({ initialPlan, onBack, onComplete }) => {
 
     if (Object.keys(errors).length === 0) {
       await saveProgress();
-      setStep(4);
+      setStep(3);
     }
   };
 
@@ -724,7 +668,7 @@ export const SignupWizard = ({ initialPlan, onBack, onComplete }) => {
         {/* Progress Bar */}
         <div className="mb-8">
           <div className="flex justify-between mb-2">
-            {["Package", "Auth", "Details", "Confirm"].map((label, idx) => (
+            {["Auth", "Details", "Confirm"].map((label, idx) => (
               <div
                 key={label}
                 className={`text-xs md:text-sm font-bold uppercase tracking-widest ${
@@ -747,7 +691,7 @@ export const SignupWizard = ({ initialPlan, onBack, onComplete }) => {
             <motion.div
               className="h-full bg-akatech-gold"
               initial={{ width: "0%" }}
-              animate={{ width: `${(step / 4) * 100}%` }}
+              animate={{ width: `${(step / 3) * 100}%` }}
               transition={{ duration: 0.5 }}
             />
           </div>
@@ -773,18 +717,12 @@ export const SignupWizard = ({ initialPlan, onBack, onComplete }) => {
             transition={{ duration: 0.3 }}
           >
             {step === 1 && (
-              <StepPackageSelection
-                selectedPackage={selectedPackage}
-                onSelect={handlePackageSelect}
-              />
-            )}
-            {step === 2 && (
               <StepSignup
                 onVerify={handleEmailVerification}
                 loading={loading}
               />
             )}
-            {step === 3 && (
+            {step === 2 && (
               <div>
                 <StepDetails
                   formData={formData}
@@ -795,7 +733,6 @@ export const SignupWizard = ({ initialPlan, onBack, onComplete }) => {
                       ? { name: formData.name, email: formData.email }
                       : null
                   }
-                  packages={PRICING_PACKAGES}
                   projectOptions={projectOptions}
                   selectedPackage={selectedPackage}
                   onSelectPackage={setSelectedPackage}
@@ -808,7 +745,7 @@ export const SignupWizard = ({ initialPlan, onBack, onComplete }) => {
                 </button>
               </div>
             )}
-            {step === 4 && (
+            {step === 3 && (
               <StepConfirmation
                 formData={formData}
                 selectedPackage={selectedPackage}

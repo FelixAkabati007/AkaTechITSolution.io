@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Icons } from "@components/ui/Icons";
-import { PRICING_PACKAGES } from "../../lib/data";
+import { PROJECT_TYPES } from "../../lib/constants";
 import { localDataService } from "@lib/localData";
 
 const API_URL = "/api";
@@ -212,7 +212,11 @@ export const AdminSubscriptions = () => {
   };
 
   const getPlanDetails = (planName) => {
-    return PRICING_PACKAGES.find((p) => p.name === planName);
+    for (const category of PROJECT_TYPES) {
+      const item = category.items.find((p) => p.name === planName);
+      if (item) return item;
+    }
+    return null;
   };
 
   return (
