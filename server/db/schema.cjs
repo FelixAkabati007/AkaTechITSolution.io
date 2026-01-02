@@ -161,6 +161,8 @@ const subscriptions = pgTable(
     plan: text("plan"),
     status: text("status").default("pending"),
     startDate: timestamp("start_date"),
+    endDate: timestamp("end_date"),
+    amount: text("amount"),
     details: text("details"), // Encrypted details
     createdAt: timestamp("created_at").defaultNow(),
     updatedAt: timestamp("updated_at").defaultNow(),

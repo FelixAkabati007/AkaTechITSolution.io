@@ -15,6 +15,13 @@
       "when": 1766962853245,
       "tag": "0001_spicy_corsair",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1767346111912,
+      "tag": "0002_wealthy_red_skull",
+      "breakpoints": true
     }
   ]
 }
